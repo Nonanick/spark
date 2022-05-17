@@ -1,0 +1,53 @@
+{
+  "name": "spark-framework",
+  "version": "0.0.1",
+  "description": "",
+  "main": "./dist/main.js",
+  "type" : "module",
+  "scripts": {
+    "dev": "node .scripts/dev.mjs",
+    "test": "vitest --config ./vitest.config.ts",
+    "coverage": "vitest --config ./vitest.config.ts run coverage"
+  },
+  "engines": {
+    "node": ">=14.16"
+  },
+  "imports": {
+    "#http/*": "./dist/core/http/*.js",
+    "#ws/*": "./dist/core/websocket/*.js",
+    "#utils/*": "./dist/core/utils/*.js",
+    "#config/*": "./dist/config/*.js",
+    "#models/*": "./dist/app/models/*.js",
+    "#services/*": "./dist/app/services/*.js",
+    "#common/*": "./dist/app/common/*.js",
+    "#container": "./dist/core/dependency_injection/container.js",
+    "#container/*": "./dist/core/dependency_injection/*.js",
+    "#logger": "./dist/core/logger/logger.js"
+  },
+  "keywords": [
+    "REST",
+    "Typescript",
+    "NodeJS",
+    ""
+  ],
+  "author": "Nicholas Frai <nicfrai@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "awilix": "^7.0.3",
+    "dotenv": "^16.0.1",
+    "find-my-way": "^5.6.0",
+    "formidable": "^2.0.1",
+    "jsonwebtoken": "^8.5.1",
+    "pino": "^7.11.0",
+    "zod": "^3.16.0"
+  },
+  "devDependencies": {
+    "@types/formidable": "^2.0.5",
+    "@types/node": "^17.0.33",
+    "chalk": "^5.0.1",
+    "esbuild": "^0.14.39",
+    "prisma": "^3.14.0",
+    "type-fest": "^2.12.2",
+    "vitest": "^0.12.5"
+  }
+}

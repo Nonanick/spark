@@ -1,0 +1,72 @@
+{
+  "compilerOptions": {
+    "incremental": false,
+    "target": "ES2022",
+    "lib": [
+      "ESNext"
+    ],
+    "useDefineForClassFields": true,
+    "module": "es2022",
+    "rootDir": "./src",
+    "moduleResolution": "node",
+    "baseUrl": "./src",
+    "paths": {
+      "#http/*": [
+        "core/http/*"
+      ],
+      "#ws/*": [
+        "core/websocket/*"
+      ],
+      "#utils/*": [
+        "core/utils/*"
+      ],
+      "#config/*": [
+        "config/*"
+      ],
+      "#models/*": [
+        "app/models/*"
+      ],
+      "#services/*": [
+        "app/services/*"
+      ],
+      "#common/*": [
+        "app/common/*"
+      ],
+      "#container": [
+        "core/dependency_injection/container.js"
+      ],
+      "#container/*": [
+        "core/dependency_injection/*"
+      ],
+      "#logger": [
+        "core/logger/logger.js"
+      ]
+    },
+    "allowJs": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "removeComments": true,
+    "importsNotUsedAsValues": "error",
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "useUnknownInCatchVariables": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "prisma",
+    "node_modules",
+    ".scripts",
+    "dist"
+  ]
+}
