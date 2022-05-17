@@ -6,7 +6,7 @@ const isInAppRoute = /^app\\routes\\.+$/;
 const controllerMatcher = /__(?<name>.+?\.)?(controller|ctrl|interceptor|guard)\.(m|c)?(t|j)s$/;
 
 const chalk = await import('chalk');
-const colorize  =new chalk.Chalk();
+const colorize = new chalk.Chalk();
 
 const httpMethods = [
   "ACL",
@@ -72,43 +72,11 @@ export class ProjectOrchestrator {
       runner.start();
 
       builder.on('build-finished', (filesBuilt) => {
-        let shouldRespawn = false;
-        for (let file of filesBuilt) {
-          let normalizedPath = file.replace(/\\/, path.sep);
-
-          // try to match the modified file!
-          if (normalizedPath.match(isInAppRoute) != null) {
-            // TODO: send hot reload message for routes affected by this
-
-            // is it a controller?
-            if (normalizedPath.match(controllerMatcher) != null) {
-              // the whole directory / subdirectories need to be reloaded!
-              runner.reloadControllersFrom(path.dirname(normalizedPath));
-            }
-
-            // is it a route?
-            if(normalizedPath.match(routeMatcher) != null) {
-              runner.reloadRoutesFrom(normalizedPath);
-            }
-            continue;
-          }
-
-          if(normalizedPath.match(serviceMatcher) != null) {
-            runner.reloadServicesFrom(normalizedPath);
-          }
-
-          // if the file cannot be hot reloaded, respawn the worker thread
-          shouldRespawn = true;
-        };
-
-        if (shouldRespawn) {
-          console.log('_'.repeat(process.stdout.columns));
-          console.log(`| ${colorize.blue.bold("[ INFO ]")} 📰 Respawning thread!\n| File(s) ${filesBuilt.map(f => `"${f}'`).join(', ')} changed!\n| At least one of these cannot be hot reloaded!`);
-          console.log('-'.repeat(process.stdout.columns) + '\n');
-          runner.respawn();
-          return;
-        }
-
+        console.log('_'.repeat(process.stdout.columns));
+        console.log(`| ${colorize.blue.bold("[ INFO ]")} 📰 Respawning thread!\n| File(s) ${filesBuilt.map(f => `"${f}'`).join(', ')} changed!`);
+        console.log('-'.repeat(process.stdout.columns) + '\n');
+        runner.respawn();
+        return;
 
       });
 

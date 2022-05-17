@@ -11,34 +11,34 @@ export class ProjectRunner extends EventEmitter {
   /**
    * @type {Worker}
    */
-  #worker;
+  worker;
 
   constructor() {
     super();
   }
 
   start() {
-    if(this.#worker != null) {
-      this.#worker.terminate();
+    if(this.worker != null) {
+      this.worker.terminate();
     }
 
     this.workerPath = path.join(path.dirname(fileURLToPath(import.meta.url)),'..','project_worker.mjs');
-    this.#worker = new Worker(this.workerPath);
-    this.#worker.on('error', (err) => {
+    this.worker = new Worker(this.workerPath);
+    this.worker.on('error', (err) => {
       console.log("Runner encountered and error!", err);
     });
-    this.#worker.on("exit", this.autoRespawn);
+    this.worker.on("exit", this.autoRespawn);
   }
 
   autoRespawn() {
-    this.#worker = null;
+    this.worker = null;
     this.start();
   }
 
   terminate() {
-    if(this.#worker != null) {
-      this.#worker.off('exit', this.autoRespawn);
-      this.#worker.terminate();
+    if(this.worker != null) {
+      this.worker.off('exit', this.autoRespawn);
+      this.worker.terminate();
     }
   }
 
@@ -48,8 +48,8 @@ export class ProjectRunner extends EventEmitter {
   }
 
   reloadRoutesFrom(location) {
-    if(this.#worker != null) {
-      this.#worker.postMessage(JSON.stringify({
+    if(this.worker != null) {
+      this.worker.postMessage(JSON.stringify({
         type : 'route',
         location
       }));
@@ -57,8 +57,8 @@ export class ProjectRunner extends EventEmitter {
   }
 
   reloadControllersFrom(location) {
-    if(this.#worker != null) {
-      this.#worker.postMessage(JSON.stringify({
+    if(this.worker != null) {
+      this.worker.postMessage(JSON.stringify({
         type : 'controller',
         location
       }));
@@ -66,8 +66,8 @@ export class ProjectRunner extends EventEmitter {
   }
 
   reloadServicesFrom(location) {
-    if(this.#worker != null) {
-      this.#worker.postMessage(JSON.stringify({
+    if(this.worker != null) {
+      this.worker.postMessage(JSON.stringify({
         type : 'service',
         location
       }));

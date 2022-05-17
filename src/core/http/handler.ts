@@ -239,8 +239,6 @@ export class HTTPHandler {
       }
     }
 
-    this.#logger.dev('Request was parsed based on schema and has the following shape: ', request);
-
     return request;
 
   }
@@ -389,7 +387,7 @@ export class HTTPHandler {
   ) {
     for (let guard of this.route.guards ?? []) {
       let guardFn = typeof guard === 'function' ? guard : guard.guard;
-      let guardServices = this.resolveServices(this.getFunctionServices(guardFn, 2));
+      let guardServices = this.resolveServices(this.getFunctionServices(guardFn, 1));
       if (guardServices instanceof Error) {
         this.#logger.fatal(
           'Failed to resolve services from request guard!',
@@ -398,7 +396,7 @@ export class HTTPHandler {
         );
         return new InternalServerError("Missing/unresolved required service for this route");
       }
-      const canContinue = await guardFn(request, this.route, ...guardServices);
+      const canContinue = await guardFn(request, ...guardServices);
       if (!canContinue || canContinue instanceof HTTPResponse) {
         if (typeof canContinue == 'boolean') {
           return new Unauthorized("You may not access this endpoint!");

@@ -8,7 +8,7 @@ export default createController({
     'ACCESS_TOKEN' : z.string().min(3)
   },
   guard : [
-    async (req, route, authenticationService : AuthenticationService) => {
+    async (req, authenticationService : AuthenticationService) => {
       if(!authenticationService.checkAccessToken(req.cookies.ACCESS_TOKEN)) {
         return HTTPResponse.ok({ msg : "Incorrect Access Token", }, 401);
       }

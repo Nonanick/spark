@@ -9,7 +9,7 @@ import { WebsocketServer } from "#ws/server";
 import { Logger } from "#logger";
 import { autoloadHttpRoutes } from '#http/autoload_routes';
 import { autoloadServices } from '#container/autoload_services';
-import path from 'path';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // load .env file
@@ -66,11 +66,15 @@ async function spark() {
   http.addRoute(...routes);
 
   // launch servers
-  http.listen({
+  await http.listen({
     host: '127.0.0.1', 
     port : 4321
   });
 
+  console.log("🌎 HTTP server is listening at http://127.0.0.1:4321!");
+  console.log("📰 Currently serving", http.routes.length, "routes!");
+  console.log(`💹 Using ${Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100} MB (${Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 100) / 100} MB of heap used)`, )
+  
   return {
     http
   };

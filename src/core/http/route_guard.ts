@@ -1,6 +1,5 @@
 import type { TRequestBody, TRequestCookies, TRequestHeaders, TRequestQueryParams, TRequestType, TRequestURLParams } from "./request.js";
 import type { HTTPResponse } from "./response.js";
-import type { HTTPRoute } from "./route.js";
 
 export type HTTPRouteGuard<
   Body extends TRequestBody | undefined = undefined,
@@ -32,7 +31,6 @@ type THTTPRouteGuardFn<
   Services extends unknown[] = unknown[],
   > = (
     req: TRequestType<Body, Headers, Cookies, URLParams, QueryParams>,
-    route: HTTPRoute<Body, Headers, Cookies, URLParams, QueryParams>,
     ...services: Services
   ) =>
     | boolean | HTTPResponse
