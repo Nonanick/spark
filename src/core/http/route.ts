@@ -100,6 +100,8 @@ export class HTTPRoute<
   // config
   config?: PartialDeep<THttpConfiguration['route']>;
 
+  register? : Record<string, unknown>;
+
   // lifecycle interceptors
   /**
    * Request Interceptor

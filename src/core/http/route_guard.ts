@@ -1,14 +1,39 @@
-import type { IHTTPRequestData } from "./request.js";
+import type { TRequestBody, TRequestCookies, TRequestHeaders, TRequestQueryParams, TRequestType, TRequestURLParams } from "./request.js";
 import type { HTTPResponse } from "./response.js";
 import type { HTTPRoute } from "./route.js";
 
-export type HTTPRouteGuard = IHTTPRouteGuard | THTTPRouteGuardFn;
+export type HTTPRouteGuard<
+  Body extends TRequestBody | undefined = undefined,
+  Headers extends TRequestHeaders | undefined = undefined,
+  Cookies extends TRequestCookies | undefined = undefined,
+  URLParams extends TRequestURLParams | undefined = undefined,
+  QueryParams extends TRequestQueryParams | undefined = undefined,
+  Services extends unknown[] = unknown[],
+  > = IHTTPRouteGuard<Body, Headers, Cookies, URLParams, QueryParams, Services> | THTTPRouteGuardFn<Body, Headers, Cookies, URLParams, QueryParams, Services>;
 
-interface IHTTPRouteGuard {
-  name : string;
-  guard : THTTPRouteGuardFn;
+interface IHTTPRouteGuard<
+  Body extends TRequestBody | undefined = undefined,
+  Headers extends TRequestHeaders | undefined = undefined,
+  Cookies extends TRequestCookies | undefined = undefined,
+  URLParams extends TRequestURLParams | undefined = undefined,
+  QueryParams extends TRequestQueryParams | undefined = undefined,
+  Services extends unknown[] = unknown[],
+  > {
+  name: string;
+  guard: THTTPRouteGuardFn<Body, Headers, Cookies, URLParams, QueryParams, Services>;
 }
 
-type THTTPRouteGuardFn = (req: IHTTPRequestData, route: HTTPRoute, ...services: unknown[]) =>
-  | boolean | HTTPResponse
-  | Promise<boolean | HTTPResponse>;
+type THTTPRouteGuardFn<
+  Body extends TRequestBody | undefined = undefined,
+  Headers extends TRequestHeaders | undefined = undefined,
+  Cookies extends TRequestCookies | undefined = undefined,
+  URLParams extends TRequestURLParams | undefined = undefined,
+  QueryParams extends TRequestQueryParams | undefined = undefined,
+  Services extends unknown[] = unknown[],
+  > = (
+    req: TRequestType<Body, Headers, Cookies, URLParams, QueryParams>,
+    route: HTTPRoute<Body, Headers, Cookies, URLParams, QueryParams>,
+    ...services: Services
+  ) =>
+    | boolean | HTTPResponse
+    | Promise<boolean | HTTPResponse>;

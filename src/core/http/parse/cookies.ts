@@ -92,6 +92,8 @@ export function serializeCookie(name : string, val : string, options : Omit<ISet
     }
 
     str += '; Path=' + opt.path;
+  } else {
+    str += '; Path=/';
   }
 
   if (opt.expires) {

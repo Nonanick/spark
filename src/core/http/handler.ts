@@ -7,6 +7,7 @@ import type { HTTPMethod } from "find-my-way";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { PartialDeep } from "type-fest";
+import { any } from "zod";
 import { BadRequest, InternalServerError, NotAcceptable, Unauthorized } from "./http_error.js";
 import type { HTTPResponseInterceptor, TInterceptHTTPResponseFn, TResponseInterceptionMoment } from "./interceptors.js";
 import { bodyParser } from "./parse/body.js";
@@ -183,6 +184,7 @@ export class HTTPHandler {
 
     // 4: check for cookies
     if (route.cookies != null) {
+      request.cookies = {} as any;
       let parsedCookies = cookieParser(req.headers['cookie'] ?? '');
       for (let cookieKey in (route.cookies as TRequestCookies)) {
         let parser = (route.cookies as TRequestCookies)[cookieKey];
@@ -197,6 +199,7 @@ export class HTTPHandler {
 
     // 5: check for url params
     if (route.urlParams != null) {
+      request.urlParams = {} as any;
       for (let urlKey in (route.urlParams as TRequestURLParams)) {
         let parser = (route.urlParams as TRequestURLParams)[urlKey];
         let value = urlParams[urlKey];
@@ -210,6 +213,7 @@ export class HTTPHandler {
 
     // 6: check for query params
     if (route.queryParams != null) {
+      request.queryParams = {} as any;
       let parsedQueryParams = queryParamsParser(req.url ?? '');
       for (let queryKey in (route.queryParams as TRequestQueryParams)) {
         let parser = (route.queryParams as TRequestQueryParams)[queryKey];
@@ -242,7 +246,7 @@ export class HTTPHandler {
           return newRequest;
         }
 
-        request = newRequest;
+        request = newRequest as any;
       } catch (err) {
         this.#logger.fatal(
           'Failed to resolve services from response interceptor!',
@@ -387,10 +391,11 @@ export class HTTPHandler {
           return canContinue;
         }
       } catch (err) {
+        console.error(err);
         this.#logger.fatal(
           'Failed to resolve services from request guard!',
           { url: this.route.url, method: this.route.method },
-          this.getParamNames(guardFn)
+          this.getParamNames(guardFn),
         );
         return new InternalServerError("Missing/unresolved required service for this route");
       }

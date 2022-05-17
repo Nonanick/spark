@@ -53,7 +53,7 @@ const routeMatcher = new RegExp(`(?<name>.+?)\\.(?<method>${[
 );
 
 // matches: "__controller.ext", "__ctrl.ext", "__interceptor.ext", just as named ones: "__auth.ctrl.ts"
-const controllerMatcher = /__(<?name>.+?\.)?(controller|ctrl|interceptor|guard)\.(m|c)?(t|j)s$/;
+const controllerMatcher = /__(?<name>.+?\.)?(controller|ctrl|interceptor|guard)\.(m|c)?(t|j)s$/;
 
 export async function autoloadHttpRoutes(from: string, baseDir: string = '') {
 
