@@ -86,6 +86,7 @@ Now if you run your server it will expose 3 endpoints:
 - **POST "/authentication/login"** which will reply 'login'
 - **POST "/authentication/logout"** which will reply 'logout'
 - **GET "/"** which will reply 'hello from root'
+_______________________________
 
 ### Exporting more than one route per file
 If you dislike the single file per route style you can export more than one route per file using named exports, all exports in a file that happen to be a HTTP Route will be autoloaded if they reside in the app/routes directory and follow the "route_name.http_method.ts" pattern!
@@ -170,8 +171,9 @@ const LoginRequestSchema = z.object({
 
 export default createRoute({
   body : LoginRequestSchema,
+  // This handler will only be called if the correct data shape was given!
   handler(req) {
-    // we can safely do this because it has already been validated! This handler will only be called if the correct data shape was given!
+    // We can safely do this because it has already been validated! 
     const { username, password, keepSession} = req.body;
     return username;
   }
@@ -227,10 +229,10 @@ export default createRoute({
 
 
 ## Dependency Injection
-Spark uses [awilix](https://github.com/jeffijoe/awilix) for its dependency injection / service container;
+Spark uses [awilix](https://github.com/jeffijoe/awilix) for its dependency injection / service container;  
 Awilix itself has 2 "ways" of working:
-- Classic, which "parses" the function parameter names and uses them to inject the dependencies;
-- Proxy, which uses a Proxy object to do pretty much the same as the classic version but whitout needing to "reflect" the paremeter names;
+- **Classic**, which "parses" the function parameter names and uses them to inject the dependencies;
+- **Proxy**, which uses a Proxy object to do pretty much the same as the classic version but whitout needing to "reflect" the paremeter names;
   
 🔥 Spark opts for the first mode (Classic)!
 
@@ -263,13 +265,13 @@ export default createRoute({
 });
 ```
 In the example above we can see how easy is to bind a service to a route, the container will resolve all of the dependencies from the necessary service and pass it to the handler as an argument.  
-⚠️ The "glue" that actually connects the "ExampleService" to the handler its the **PARAMETER NAME** (exampleService), which is the same as the registered in the container, the types from typescript vanishes during compilation and cannot be used for discovery.
-> In case we mispell the parameter name the handler will throw an "Internal Server Error" acusing the missing service from its underlying container;
+⚠️ The "glue" that actually connects the "ExampleService" to the handler its the **PARAMETER NAME** (exampleService), which is the same as the registered in the container, the types from typescript vanishes during compilation and cannot be used for discovery.  
+In case we mispell the parameter name the handler will throw an "Internal Server Error" acusing the missing service from its underlying container;
 
 ### Auto-importing / registration
 Just like the API Routes there's a special folder in app called "services", everything that's a "name.service.ts" file will be looked up and imported into the container.  
-Just like in the awilix documentation we use camelCase for class names registrations, functions and values;
-You can customize the name of a class, function or object by setting a static symbol exported by Spark called [DependencyName];  
+Just like suggested in awilix documentation we use camelCase for class names registrations, functions and values;
+You can customize the name of a class, function or object by setting a static symbol, exported by Spark, called [DependencyName];  
 There's also another option to control the lifetime of classes called [DependencyLifetime];  
 **Example:**
 ```ts
@@ -300,3 +302,14 @@ export class AnotherExampleService {
   }
 }
 ```
+___________________
+
+## TODOS:
+* [ ] Finish this "documentation" including "controllers", request and response "middlewares", route guards, sending custom responses, the request lifecycle, how to use scoped containers for DI...
+* [ ] Try to move to "proxy" mode in awilix, it will require some script to update the "awilix context" type (right now we don't use proxy mode because the experience using it with typescript its suboptimal)
+* [ ] Use busyboy as multipart parser (? it streams instead of writing to a temp file... would be easier to apply the validations)
+* [ ] Generate the dev script for automatic build and project launch/reload
+* [ ] Cleanup the routes folder
+* [ ] Implement Websockets
+* [ ] Create an example ".env" file
+* [ ] Check if we can use JSONSchema instead of zod (AJV is faster, JSONSchema has greater interop), zod is WAY more powerful, but maybe we could add a layer abover @sinclair/typebox (for JSONSchema creation/type inference) and create some validations ourself?
