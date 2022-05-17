@@ -31,12 +31,12 @@ container.register({
 });
 
 // start boot sequence 
-spark();
+export default spark();
 
 // spark boot sequence
 async function spark() {
 
-  console.log(" 🔥 Spark!");
+  console.log(" - 🔥 Spark! Starting servers... ");
 
   // check if it is a development env
   const isDev = process.env.NODE_ENV === 'development';
@@ -71,5 +71,7 @@ async function spark() {
     port : 4321
   });
 
-
+  return {
+    http
+  };
 }

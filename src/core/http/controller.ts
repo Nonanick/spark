@@ -30,7 +30,6 @@ export class HTTPController<
   #logger: Logger = new Logger(HTTPController.name);
 
   applyToRoute(...routes: HTTPRoute<Body, Headers, Cookies, URLParams, QueryParams>[]) {
-    this.#logger.log("Implement controller! Handling routes: ", routes);
     routes.forEach(route => {
       // preppend interceptors and guards
       route.requestInterceptor = [...this.interceptRequest ?? [], ...route.requestInterceptor ?? []];

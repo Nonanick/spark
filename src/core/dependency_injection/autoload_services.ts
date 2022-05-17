@@ -7,7 +7,7 @@ import { DependencyLifetime, DependencyName } from "./symbols.js";
 import path from 'path';
 import { pathToFileURL } from "node:url";
 
-const isJsFile = /(?<name>.+)\.service\.(m|c)?js$/;
+const isServiceFile = /(?<name>.+)\.service\.(m|c)?js$/;
 
 export async function autoloadServices(
   into: AwilixContainer,
@@ -26,7 +26,7 @@ export async function autoloadServices(
     }
 
     if (entry.isFile()) {
-      const matchesWithService = entry.name.match(isJsFile);
+      const matchesWithService = entry.name.match(isServiceFile);
       if (matchesWithService != null) {
         let loadedServices = await defaultServiceLoader(
           `${from}${path.sep}${entry.name}`,

@@ -1,5 +1,6 @@
 import type { THttpConfiguration } from "#config/http.config";
 import { container } from "#container";
+import { MissingServiceInContainer } from "#container/missing_service.error";
 import { Logger } from "#logger";
 import { deepmerge } from "#utils/deepmerge";
 import type { AwilixContainer } from "awilix";
@@ -89,10 +90,10 @@ export class HTTPHandler {
 
     // call route handler function
     let handlerResponse;
-    let handlerServices: unknown[];
-    try {
-      handlerServices = this.resolveServices(this.getFunctionServices(this.route.handler, 1));
-    } catch (err) {
+    let handlerServices: unknown[] | Error;
+    handlerServices = this.resolveServices(this.getFunctionServices(this.route.handler, 1));
+    if (handlerServices instanceof Error) {
+
       this.#logger.fatal(
         'Failed to resolve services from route handler ',
         { url: this.route.url, method: this.route.method },
@@ -176,7 +177,10 @@ export class HTTPHandler {
         let value = (request.headers as any)[headerKey];
         let parsed = parser.safeParse(value);
         if (!parsed.success) {
-          return new BadRequest("A header parameter could not be validated");
+          if (value == null) {
+            return new BadRequest(`This route expects a header named "${headerKey}" to be present!`);
+          }
+          return new BadRequest(`A header parameter could not be validated! ${parsed.error.toString()}`);
         }
         (request.headers as any)[headerKey] = parsed.data;
       }
@@ -191,7 +195,10 @@ export class HTTPHandler {
         let value = parsedCookies[cookieKey];
         let parsed = parser.safeParse(value);
         if (!parsed.success) {
-          return new BadRequest("A cookie parameter could not be validated")
+          if (value == null) {
+            return new BadRequest(`This route expects a cookie named "${cookieKey}" to be present!`);
+          }
+          return new BadRequest(`A cookie parameter could not be validated! ${parsed.error.toString()}`);
         }
         (request.cookies as any)[cookieKey] = parsed.data;
       }
@@ -205,7 +212,10 @@ export class HTTPHandler {
         let value = urlParams[urlKey];
         let parsed = parser.safeParse(value);
         if (!parsed.success) {
-          return new BadRequest("An URL parameter could not be validated!")
+          if (value == null) {
+            return new BadRequest(`This route expects an URL parameter named "${urlKey}" to be present!`);
+          }
+          return new BadRequest(`An URL parameter could not be validated! ${parsed.error.toString()}`);
         }
         (request.urlParams as any)[urlKey] = parsed.data;
       }
@@ -220,7 +230,10 @@ export class HTTPHandler {
         let value = parsedQueryParams[queryKey];
         let parsed = parser.safeParse(value);
         if (!parsed.success) {
-          return new BadRequest("A Query Parameter could not be validated!");
+          if (value == null) {
+            return new BadRequest(`This route expects an query parameter named "${queryKey}" to be present!`);
+          }
+          return new BadRequest(`An query parameter could not be validated! ${parsed.error.toString()}`);
         }
         (request.queryParams as any)[queryKey] = parsed.data;
       }
@@ -237,17 +250,8 @@ export class HTTPHandler {
 
     for (let interceptor of route.requestInterceptor ?? []) {
       let interceptorFn = typeof interceptor === 'function' ? interceptor : interceptor.interceptor;
-      try {
-        let injectServices = this.resolveServices(this.getFunctionServices(interceptorFn, 1));
-        let newRequest = await interceptorFn(request, ...injectServices);
-
-        // check return from interceptor
-        if (newRequest instanceof Error || newRequest instanceof HTTPResponse) {
-          return newRequest;
-        }
-
-        request = newRequest as any;
-      } catch (err) {
+      let injectServices = this.resolveServices(this.getFunctionServices(interceptorFn, 1));
+      if (injectServices instanceof Error) {
         this.#logger.fatal(
           'Failed to resolve services from response interceptor!',
           { url: this.route.url, method: this.route.method },
@@ -255,6 +259,12 @@ export class HTTPHandler {
         );
         return HTTPResponse.error(new InternalServerError("Missing/unresolved required service for this route"));
       }
+      let newRequest = await interceptorFn(request, ...injectServices);
+      // check return from interceptor
+      if (newRequest instanceof Error || newRequest instanceof HTTPResponse) {
+        return newRequest;
+      }
+      request = newRequest as any;
     }
 
     return request;
@@ -360,10 +370,8 @@ export class HTTPHandler {
     );
 
     for (const interceptorFn of applyInterceptors) {
-      try {
-        let injectServices = this.resolveServices(this.getFunctionServices(interceptorFn, 1));
-        response = await interceptorFn(response, ...injectServices);
-      } catch (err) {
+      let injectServices = this.resolveServices(this.getFunctionServices(interceptorFn, 1));
+      if (injectServices instanceof Error) {
         this.#logger.fatal(
           'Failed to resolve services from response interceptor!',
           { url: this.route.url, method: this.route.method },
@@ -371,8 +379,8 @@ export class HTTPHandler {
         );
         return HTTPResponse.error(new InternalServerError("Missing/unresolved required service for this route"));
       }
+      response = await interceptorFn(response, ...injectServices);
     }
-
     return response;
   }
 
@@ -381,17 +389,8 @@ export class HTTPHandler {
   ) {
     for (let guard of this.route.guards ?? []) {
       let guardFn = typeof guard === 'function' ? guard : guard.guard;
-      try {
-        let guardServices = this.resolveServices(this.getFunctionServices(guardFn, 2));
-        const canContinue = await guardFn(request, this.route, ...guardServices);
-        if (!canContinue || canContinue instanceof HTTPResponse) {
-          if (typeof canContinue == 'boolean') {
-            return new Unauthorized("You may not access this endpoint!");
-          }
-          return canContinue;
-        }
-      } catch (err) {
-        console.error(err);
+      let guardServices = this.resolveServices(this.getFunctionServices(guardFn, 2));
+      if (guardServices instanceof Error) {
         this.#logger.fatal(
           'Failed to resolve services from request guard!',
           { url: this.route.url, method: this.route.method },
@@ -399,13 +398,24 @@ export class HTTPHandler {
         );
         return new InternalServerError("Missing/unresolved required service for this route");
       }
+      const canContinue = await guardFn(request, this.route, ...guardServices);
+      if (!canContinue || canContinue instanceof HTTPResponse) {
+        if (typeof canContinue == 'boolean') {
+          return new Unauthorized("You may not access this endpoint!");
+        }
+        return canContinue;
+      }
     }
 
     return true as true;
   }
 
-  private resolveServices(serviceNames: string[]) {
-    return serviceNames.map(name => this.container.resolve(name));
+  private resolveServices(serviceNames: string[]): unknown[] | MissingServiceInContainer {
+    try {
+      return serviceNames.map(name => this.container.resolve(name));
+    } catch (err) {
+      return new MissingServiceInContainer("Could not resolve service by its name! " + serviceNames.join(', '))
+    }
   }
 
   private getFunctionServices(fromFunction: Function, offsetParams: number): string[] {
@@ -433,8 +443,8 @@ export class HTTPHandler {
 
 }
 
-var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-var ARGUMENT_NAMES = /([^\s,]+)/g;
+const STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+const ARGUMENT_NAMES = /([^\s,]+)/g;
 
 /**
  * Default contentType by RFC 2616

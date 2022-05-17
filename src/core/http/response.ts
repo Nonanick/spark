@@ -7,12 +7,12 @@ export class HTTPResponse {
 
   static #logger?: Logger;
 
-  private static logger() : Logger {
-    if(HTTPResponse.#logger == null){
+  private static logger(): Logger {
+    if (HTTPResponse.#logger == null) {
       HTTPResponse.#logger = new Logger(HTTPResponse.name);
     }
     return HTTPResponse.#logger;
-  } 
+  }
 
   static ok(send: unknown, status: HTTPStatus | number = HTTPStatus.Ok) {
     const r = new HTTPResponse;
@@ -68,7 +68,7 @@ export class HTTPResponse {
     return this.#headers[name] != null;
   }
 
-  setCookie(name: string, value: string, options?: Omit<ISetCookieOptions,"value">) {
+  setCookie(name: string, value: string, options?: Omit<ISetCookieOptions, "value">) {
     this.#cookies[name] = {
       value,
       ...options
@@ -76,9 +76,10 @@ export class HTTPResponse {
     return this;
   }
 
-  expireCookie(name: string) {
+  expireCookie(name: string, options?: Omit<ISetCookieOptions, "value">) {
     this.#cookies[name] = {
       value: '',
+      expires: new Date(Date.now() - 1000)
     };
     return this;
   }
@@ -102,10 +103,10 @@ export class HTTPResponse {
     return this.#payload != null;
   }
 
-  status() : number;
-  status(code : number) : void;
+  status(): number;
+  status(code: number): void;
   status(code?: number) {
-    if(code == null) return this.#statusCode;
+    if (code == null) return this.#statusCode;
     else this.#statusCode = code;
     return this;
   }

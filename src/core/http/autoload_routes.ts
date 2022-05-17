@@ -1,7 +1,6 @@
 import { defaultModuleLoader } from "#utils/module_loader";
 import type { HTTPMethod } from "find-my-way";
 import { promises as fs } from "node:fs";
-import { platform } from "node:os";
 import path from 'node:path';
 import { HTTPController } from './controller.js';
 import { HTTPRoute } from './route.js';

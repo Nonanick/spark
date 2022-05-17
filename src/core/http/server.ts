@@ -1,21 +1,10 @@
 import type { THttpConfiguration } from "#config/http.config";
 import { container } from "#container";
 import { Logger } from "#logger";
-import { deepmerge } from "#utils/deepmerge";
 import createRouter, { type HTTPMethod } from 'find-my-way';
-import { randomUUID } from "node:crypto";
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { createServer, type Server } from 'node:http';
 import { createServer as createSSLServer, type Server as SSLServer } from 'node:https';
-import { performance } from "node:perf_hooks";
-import type { PartialDeep } from "type-fest";
 import { HTTPHandler } from "./handler.js";
-import { BadRequest, NotAcceptable, Unauthorized } from "./http_error.js";
-import type { HTTPResponseInterceptor, TResponseInterceptionMoment } from "./interceptors.js";
-import { bodyParser } from "./parse/body.js";
-import { cookieParser } from "./parse/cookies.js";
-import { queryParamsParser } from "./parse/queryParams.js";
-import type { IHTTPRequestData, TRequestBody, TRequestCookies, TRequestHeaders, TRequestQueryParams, TRequestURLParams } from "./request.js";
-import { HTTPResponse } from "./response.js";
 import type { HTTPRoute } from "./route.js";
 
 type TListenOptions = {

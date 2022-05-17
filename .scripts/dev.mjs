@@ -1,67 +1,64 @@
-import { EventEmitter } from 'events';
-import path from 'path';
-import { stdout } from 'process';
-import { platform } from 'node:os';
-
-class Builder extends EventEmitter {
-
-}
-
-class Checker extends EventEmitter {
-
-}
-
-class Runner extends EventEmitter {
-
-}
-
-class Cache {
-
-}
-
 // @ts-check
+import path from 'node:path';
+import { ProjectBuilder } from './dev/builder.mjs';
+import { ProjectRunner } from './dev/runner.mjs';
+import { fileURLToPath } from 'node:url';
+import { promises as fs } from 'node:fs';
+import { format } from 'node:util';
+import { ProjectOrchestrator } from './dev/orchestrator.mjs';
 export { };
 
 const chalk = await import('chalk');
 const colorize = chalk.default;
+
 const config = {
   paths: {
-    projectRoot: 'src'
+    projectRoot: 'src',
+    buildOutput: 'dist'
   },
   entryFile: 'main.ts',
 };
 
-const projectRoot = findProjectRoot(config.paths.projectRoot);
-const print = process.stdout.write.bind(stdout);
-const println = (data) => print(String(data) + "\n");
+const print = process.stdout.write.bind(process.stdout);
+const println = (data, ...objs) => print(String(data) + objs.map(o => format(o)).join(', ') + "\n");
 
 println(
   colorize.bgWhite.black(
     " 🔥 SPARK  "
   )
   + " - Development\n"
-  + "_________________________"
+  + '_'.repeat(process.stdout.columns)
 );
 
 
-// start builder
-println(colorize.gray(`|>  launching ${config.paths.projectRoot}${path.sep}${config.entryFile}`));
-const builder = new Builder(projectRoot);
+const projectRoot = findProjectRoot(config.paths.projectRoot);
+const devOutput = path.join(projectRoot, '..', config.paths.buildOutput);
 
-// create a noEmit tsc compiler for errors display
+// cleanup project
+await fs.rm(devOutput, { recursive: true, force: true })
+  .catch(err => {
+    println("| > failed to cleanup development output!", err);
+  }).then(async _ => {
+    println(`| > Cleanup: ${colorize.italic.gray(devOutput)} ✅ OK`);
+    await fs.mkdir(devOutput, { recursive: true })
+  });
+
+// start builder
+const builder = new ProjectBuilder(projectRoot, devOutput);
 
 // spawn a worker thread
+const runner = new ProjectRunner();
 
+const orchestrator = new ProjectOrchestrator(builder, runner);
 
+builder.once('ready', () => {
+  println(`| > Launching: ${colorize.italic.gray(`src${path.sep}main.ts`)} ✅ OK`);
+  println('-'.repeat(process.stdout.columns));
+
+});
+
+// create a noEmit tsc compiler for errors display
 function findProjectRoot(projectRoot) {
-  const thisPath = normalizePath(import.meta.url);
+  const thisPath = path.dirname(fileURLToPath(import.meta.url));
   return path.join(thisPath, '..', projectRoot);
-}
-
-function normalizePath(p) {
-  if (platform() === 'win32') {
-    return path.win32.normalize(p).replace(/file:\\(\D)\:/, '').replace(/\\/g, '/');
-  } else {
-    return path.normalize(p);
-  }
 }
