@@ -1,5 +1,4 @@
 import { Logger } from "#logger";
-import { z } from "zod";
 import type { HTTPRequestInterceptor, HTTPResponseInterceptor } from "./interceptors";
 import type { TRequestBody, TRequestCookies, TRequestHeaders, TRequestQueryParams, TRequestURLParams } from "./request";
 import type { HTTPRoute } from "./route";
@@ -9,13 +8,13 @@ export class HTTPController<
   Body extends TRequestBody = TRequestBody,
   Headers extends TRequestHeaders = TRequestHeaders,
   Cookies extends TRequestCookies = TRequestCookies,
+  URLParams extends TRequestURLParams = TRequestURLParams,
   QueryParams extends TRequestQueryParams = TRequestQueryParams,
-  URLParams extends TRequestURLParams = TRequestURLParams
   > {
-
+  
   register?: Record<string, unknown>;
 
-  interceptRequest?: HTTPRequestInterceptor[] = [];
+  interceptRequest?: (HTTPRequestInterceptor<Body, Headers, Cookies, URLParams, QueryParams>)[] = [];
   interceptResponse?: HTTPResponseInterceptor[] = [];
   guard?: HTTPRouteGuard[] = [];
 
@@ -28,7 +27,7 @@ export class HTTPController<
 
   #logger: Logger = new Logger(HTTPController.name);
 
-  applyToRoute(...routes: HTTPRoute[]) {
+  applyToRoute(...routes: HTTPRoute<Body, Headers, Cookies, URLParams, QueryParams>[]) {
     this.#logger.log("Implement controller! Handling routes: ", routes);
     routes.forEach(route => {
       // preppend interceptors and guards

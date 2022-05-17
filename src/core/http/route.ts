@@ -1,11 +1,9 @@
 import type { THttpConfiguration } from "#config/http.config";
 import type { HTTPMethod } from "find-my-way";
-import type PersistentFile from "formidable/PersistentFile";
-import type { AnyZodObject, ZodBoolean, ZodNumber, ZodString, ZodType, ZodTypeDef } from "zod";
-import type { HTTPRequestInterceptor, HTTPResponseInterceptor } from "./interceptors.js";
-import type { HTTPRouteGuard } from "./route_guard.js";
 import type { PartialDeep } from "type-fest";
-import type { IHTTPRequestData, TRequestBody, TRequestCookies, TRequestFiles, TRequestHeaders, TRequestQueryParams, TRequestURLParams } from "./request.js";
+import type { HTTPRequestInterceptor, HTTPResponseInterceptor } from "./interceptors.js";
+import type { TRequestType, TRequestBody, TRequestCookies, TRequestFiles, TRequestHeaders, TRequestQueryParams, TRequestURLParams } from "./request.js";
+import type { HTTPRouteGuard } from "./route_guard.js";
 
 /**
  * [HTTP] Route
@@ -17,13 +15,13 @@ import type { IHTTPRequestData, TRequestBody, TRequestCookies, TRequestFiles, TR
  * 
  */
 export class HTTPRoute<
-  Body extends AnyZodObject | undefined = undefined,
-  Headers extends Record<HTTPIncomingHeaders, ZodString> | undefined = undefined,
-  Cookies extends Record<string, ZodString> | undefined = undefined,
-  URLParams extends Record<string, ZodString> | undefined = undefined,
-  QueryParams extends Record<string, ZodString | ZodNumber | ZodBoolean> | undefined = undefined,
-  Files extends Record<string, ZodType<PersistentFile, ZodTypeDef, PersistentFile>> | undefined = undefined,
-  Services extends unknown[] = unknown[]
+  Body extends TRequestBody | undefined = undefined,
+  Headers extends TRequestHeaders | undefined = undefined,
+  Cookies extends TRequestCookies | undefined = undefined,
+  URLParams extends TRequestURLParams | undefined = undefined,
+  QueryParams extends TRequestQueryParams | undefined = undefined,
+  Files extends TRequestFiles | undefined = undefined,
+  Services extends unknown[] = unknown[],
   > {
 
   /**
@@ -112,8 +110,8 @@ export class HTTPRoute<
    * 
    * Request interceptors are called AFTER incoming data validation and BEFORE route guards
    */
-  requestInterceptor?: HTTPRequestInterceptor[];
-  
+  requestInterceptor?: HTTPRequestInterceptor<Body, Headers, Cookies, URLParams, QueryParams>[];
+
   /**
    * Route Guard
    * -----------
@@ -159,7 +157,8 @@ type HTTPRequestHandler<
   QueryParams extends TRequestQueryParams | undefined = undefined,
   Files extends TRequestFiles | undefined = undefined,
   Services extends unknown[] = unknown[],
-  > = (req: IHTTPRequestData<Body, Headers, Cookies, URLParams, QueryParams, Files>, ...services: Services) => unknown | Promise<unknown>;
+  > = (req: TRequestType<Body, Headers, Cookies, URLParams, QueryParams, Files>, ...services: Services) => unknown | Promise<unknown>;
+
 
 export function createRoute<
   Body extends TRequestBody | undefined = undefined,
@@ -168,63 +167,70 @@ export function createRoute<
   URLParams extends TRequestURLParams | undefined = undefined,
   QueryParams extends TRequestQueryParams | undefined = undefined,
   Files extends TRequestFiles | undefined = undefined,
-  Services extends unknown[] = unknown[],
-  >(options: ICreateRouteOptions<Body, Headers, Cookies, URLParams, QueryParams, Files, Services>) {
-    const route = new HTTPRoute<Body, Headers, Cookies, URLParams, QueryParams, Files, Services>();
+  Services extends unknown[] = unknown[]
+>(options: ICreateRouteOptions<Body, Headers, Cookies, URLParams, QueryParams, Files, Services>) {
 
-    route.url = options.url;
-    route.method = options.method;
-    route.config = options.config;
-    
-    route.headers = options.headers;
-    route.body = options.body;
-    route.cookies = options.cookies;
-    route.files = options.files;
-    route.queryParams = options.queryParams;
-    route.urlParams = options.urlParams;
+  const route = new HTTPRoute<Body, Headers, Cookies, URLParams, QueryParams, Files, Services>();
 
-    route.guards = options.guards ?? [];
-    route.requestInterceptor =options.requestInterceptor ?? [];
-    route.responseInterceptor = options.responseInterceptor ?? [];
+  route.url = options.url;
+  route.method = options.method;
+  route.config = options.config;
 
-    route.handler = options.handler ?? (() => {
-      return 'Default route handler, provide a function to override this behaviour!';
-    } ) as any;
+  route.headers = options.headers;
+  route.body = options.body;
+  route.cookies = options.cookies;
+  route.files = options.files;
+  route.queryParams = options.queryParams;
+  route.urlParams = options.urlParams;
 
-    return route;
+  route.guards = options.guards ?? [];
+  route.requestInterceptor = options.requestInterceptor as any[] ?? [];
+  route.responseInterceptor = options.responseInterceptor ?? [];
+
+  route.handler = options.handler ?? (() => {
+    return 'Default route handler, provide a function to override this behaviour!';
+  }) as any;
+
+  return route;
 }
 
-export interface ICreateRouteOptions<
+export type ICreateRouteOptions<
   Body extends TRequestBody | undefined = undefined,
   Headers extends TRequestHeaders | undefined = undefined,
   Cookies extends TRequestCookies | undefined = undefined,
   URLParams extends TRequestURLParams | undefined = undefined,
   QueryParams extends TRequestQueryParams | undefined = undefined,
   Files extends TRequestFiles | undefined = undefined,
-  Services extends unknown[] = unknown[],
-  > {
-  method?: Lowercase<HTTPMethod>;
-  url?: string;
+  Services extends unknown[] = unknown[]
+  > = {
+    method?: Lowercase<HTTPMethod>;
+    url?: string;
 
-  // request incoming data schema
-  body?: Body;
-  headers?: Headers;
-  cookies?: Cookies;
-  urlParams?: URLParams;
-  queryParams?: QueryParams;
-  files?: Files;
+    // request incoming data schema
+    body?: Body;
+    headers?: Headers;
+    cookies?: Cookies;
+    urlParams?: URLParams;
+    queryParams?: QueryParams;
+    files?: Files;
 
-  // config
-  config?: PartialDeep<THttpConfiguration['route']>;
+    // config
+    config?: PartialDeep<THttpConfiguration['route']>;
 
-  // lifecycle interceptors
-  requestInterceptor?: HTTPRequestInterceptor[];
-  responseInterceptor?: HTTPResponseInterceptor[];
-  guards?: HTTPRouteGuard[];
+    // lifecycle interceptors
+    requestInterceptor?: HTTPRequestInterceptor<
+      NonNullable<Body>,
+      NonNullable<Headers>,
+      NonNullable<Cookies>,
+      NonNullable<URLParams>,
+      NonNullable<QueryParams>
+    >[];
+    responseInterceptor?: HTTPResponseInterceptor[];
+    guards?: HTTPRouteGuard[];
 
-  // actual route handler
-  handler?: HTTPRequestHandler<Body, Headers, Cookies, URLParams, QueryParams, Files, Services>;
-}
+    // actual route handler
+    handler?: HTTPRequestHandler<Body, Headers, Cookies, URLParams, QueryParams, Files, Services>;
+  }
 
 export type HTTPIncomingHeaders =
 

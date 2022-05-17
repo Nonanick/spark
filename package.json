@@ -3,9 +3,12 @@
   "version": "0.0.1",
   "description": "",
   "main": "./dist/main.js",
-  "type" : "module",
+  "type": "module",
   "scripts": {
     "dev": "node .scripts/dev.mjs",
+    "generate" : "prisma generate",
+    "migrate" : "prisma migrate dev",
+
     "test": "vitest --config ./vitest.config.ts",
     "coverage": "vitest --config ./vitest.config.ts run coverage"
   },
@@ -28,16 +31,21 @@
     "REST",
     "Typescript",
     "NodeJS",
-    ""
+    "Spark",
+    "API",
+    "Fast prototyping"
   ],
-  "author": "Nicholas Frai <nicfrai@gmail.com>",
+  "author": {
+    "name": "Nicholas Frai",
+    "url": "https://github.com/Nonanick"
+  },
   "license": "MIT",
   "dependencies": {
+    "@prisma/client": "^3.14.0",
     "awilix": "^7.0.3",
     "dotenv": "^16.0.1",
     "find-my-way": "^5.6.0",
     "formidable": "^2.0.1",
-    "jsonwebtoken": "^8.5.1",
     "pino": "^7.11.0",
     "zod": "^3.16.0"
   },

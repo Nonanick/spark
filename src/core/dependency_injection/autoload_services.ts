@@ -7,7 +7,7 @@ import { DependencyLifetime, DependencyName } from "./symbols.js";
 import path from 'path';
 import { pathToFileURL } from "node:url";
 
-const isJsFile = /.+\.(m|t)?js$/;
+const isJsFile = /(?<name>.+)\.service\.(m|c)?js$/;
 
 export async function autoloadServices(
   into: AwilixContainer,
@@ -24,10 +24,13 @@ export async function autoloadServices(
         `${from}${path.sep}${entry.name}`
       );
     }
+
     if (entry.isFile()) {
-      if (entry.name.match(isJsFile) != null) {
+      const matchesWithService = entry.name.match(isJsFile);
+      if (matchesWithService != null) {
         let loadedServices = await defaultServiceLoader(
           `${from}${path.sep}${entry.name}`,
+          matchesWithService.groups!.name
         );
         allServices.push(...loadedServices);
       }
@@ -40,7 +43,7 @@ export async function autoloadServices(
       // check if it has a resolver name
       let name: string = Object.getOwnPropertySymbols(service).includes(DependencyName)
         ? (service as any)[DependencyName]
-        : service.name;
+        : toCamelCase(service.name);
 
       let lifetime = Object.getOwnPropertySymbols(service).includes(DependencyLifetime)
         ? ['SINGLETON', 'TRANSIENT', 'SCOPED'].includes((service as any)[DependencyLifetime])
@@ -53,7 +56,8 @@ export async function autoloadServices(
     }
 
     if (isFunction(service)) {
-      container.register(service.name, asFunction(service));
+      console.log("function was exported!", service.name, service.toString());
+      container.register(toCamelCase(service.name), asFunction(service));
       continue;
     }
 
@@ -65,15 +69,23 @@ export async function autoloadServices(
       && "value" in service
       && (service as any).value !== undefined
     ) {
-      container.register((service as any).name, asValue((service as any).value));
+      container.register(toCamelCase((service as any).name), asValue((service as any).value));
     }
 
 
   }
 }
+export const toCamelCase = (text: string): string => {
+  return text
+    .replace(/(?:^\w|[A-Z]|\b\w)/g, (leftTrim: string, index: number) =>
+      index === 0 ? leftTrim.toLowerCase() : leftTrim.toUpperCase(),
+    )
+    .replace(/\s+/g, "");
+};
 
 export async function defaultServiceLoader<T = unknown>(
   filepath: string,
+  name : string = '',
 ) {
 
   //  convert path to url so we can import it!

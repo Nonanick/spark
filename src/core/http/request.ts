@@ -64,3 +64,40 @@ export interface IHTTPRequestContext {
   route: HTTPRoute;
   container: AwilixContainer;
 }
+
+
+export type TRequestType<
+  Body extends TRequestBody | undefined = undefined,
+  Headers extends TRequestHeaders | undefined = undefined,
+  Cookies extends TRequestCookies | undefined = undefined,
+  URLParams extends TRequestURLParams | undefined = undefined,
+  QueryParams extends TRequestQueryParams | undefined = undefined,
+  Files extends TRequestFiles | undefined = undefined,
+  > = Omit<IHTTPRequestData, "body" | "urlParams" | "queryParams" | "cookies" | "files">
+  & (Body extends undefined ? {} : { body: TypeOf<NonNullable<Body>> })
+  & (Headers extends undefined ? {} : {
+    headers: Merge<
+      { [name in HTTPIncomingHeaders]?: string },
+      { [name in keyof NonNullable<Headers>]-?: string }
+    >
+  })
+  & (Cookies extends undefined ? {} : {
+    cookies: {
+      [name in keyof NonNullable<Cookies>]: string
+    }
+  })
+  & (URLParams extends undefined ? {} : {
+    urlParams: {
+      [name in keyof NonNullable<URLParams>]: string
+    }
+  })
+  & (QueryParams extends undefined ? {} : {
+    queryParams: {
+      [name in keyof NonNullable<QueryParams>]: TypeOf<NonNullable<QueryParams>[name]>
+    }
+  })
+  & (Files extends undefined ? {} : {
+    files: {
+      [name in keyof NonNullable<Files>]: File
+    }
+  });
