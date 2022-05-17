@@ -5,8 +5,9 @@ import { z } from 'zod';
 
 export default createRoute({
   body: z.object({
-    username: z.string(),
-    password: z.string()
+    username: z.string().min(4),
+    password: z.string().min(8).regex(/[A-z][0-9][_-@#]/),
+    keepSession : z.boolean().default(false)
   }),
 
   handler(req, exampleService: ExampleService) {
