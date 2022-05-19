@@ -3,8 +3,8 @@ import { container } from "#container";
 import { MissingServiceInContainer } from "#container/missing_service.error";
 import { Logger } from "#logger";
 import { deepmerge } from "#utils/deepmerge";
-import { isClass } from "#utils/is_class.js";
-import { isFunction } from "#utils/is_function.js";
+import { isClass } from "#utils/is_class";
+import { isFunction } from "#utils/is_function";
 import { asClass, asFunction, asValue, AwilixContainer, Lifetime } from "awilix";
 import type { HTTPMethod } from "find-my-way";
 import { randomUUID } from "node:crypto";
@@ -149,19 +149,20 @@ export class HTTPHandler {
 
   async handle(req: IncomingMessage, res: ServerResponse, urlParams: Record<string, string | undefined>) {
     // make a resolver only for this request
-    const requestContainer = this.container.createScope();
-    let request = await this.forgeRequest(req, urlParams, requestContainer);
+    const container = this.container.createScope();
+    let request = await this.forgeRequest(req, urlParams, container);
 
     // If it returned a http response or an error a validation error ocurred!
     if (request instanceof HTTPResponse || request instanceof Error) {
       let response = await this.applyResponseInterceptors(
         request,
         'data-validation-failed',
+        container,
       );
       return response.send(res);
     }
 
-    let interceptedRequest = await this.applyRequestInterceptors(request);
+    let interceptedRequest = await this.applyRequestInterceptors(request, container);
 
     // again, interceptors can short circuit the request cycle
     if (interceptedRequest instanceof HTTPResponse || interceptedRequest instanceof Error) {
@@ -170,11 +171,15 @@ export class HTTPHandler {
         response = await this.applyResponseInterceptors(
           interceptedRequest,
           'interceptor-prevented-progression-with-ok-response',
+          container,
+
         );
       } else {
         response = await this.applyResponseInterceptors(
           interceptedRequest,
           'interceptor-prevented-progression-with-error-response',
+          container,
+
         );
       }
       return response.send(res);
@@ -184,11 +189,12 @@ export class HTTPHandler {
     request = interceptedRequest;
 
     // apply guards
-    let canContinue = await this.applyGuards(request);
+    let canContinue = await this.applyGuards(request, container);
     if (canContinue instanceof Error || canContinue instanceof HTTPResponse) {
       let response = await this.applyResponseInterceptors(
         canContinue,
         'guard-prevented-progression',
+        container,
       );
       return response.send(res);
     }
@@ -196,7 +202,7 @@ export class HTTPHandler {
     // call route handler function
     let handlerResponse;
     let handlerServices: unknown[] | Error;
-    handlerServices = this.resolveServices(this.getFunctionServices(this.route.handler, 1));
+    handlerServices = this.resolveServices(container, this.getFunctionServices(this.route.handler, 1));
     if (handlerServices instanceof Error) {
 
       this.#logger.fatal(
@@ -232,13 +238,15 @@ export class HTTPHandler {
       let response = await this.applyResponseInterceptors(
         handlerResponse,
         'handler-finished-with-error-response',
+        container,
       );
       return response.send(res);
     }
 
     handlerResponse = await this.applyResponseInterceptors(
       handlerResponse,
-      'handler-finished-with-ok-response'
+      'handler-finished-with-ok-response',
+      container,
     );
 
     return handlerResponse.send(res);
@@ -291,7 +299,7 @@ export class HTTPHandler {
     //  3: check if there are required headers
     if (this.headers != null) {
       for (let headerKey in (this.headers as TRequestHeaders)) {
-        let parser = (this.headers as TRequestHeaders)[headerKey];
+        let parser = (this.headers as TRequestHeaders)[headerKey]!;
         let value = (request.headers as any)[headerKey];
         let parsed = parser.safeParse(value);
         if (!parsed.success) {
@@ -361,12 +369,12 @@ export class HTTPHandler {
 
   }
 
-  private async applyRequestInterceptors(request: IHTTPRequestData): Promise<IHTTPRequestData | Error | HTTPResponse> {
+  private async applyRequestInterceptors(request: IHTTPRequestData, container: AwilixContainer): Promise<IHTTPRequestData | Error | HTTPResponse> {
     const route = this.route;
 
     for (let interceptor of route.requestInterceptor ?? []) {
       let interceptorFn = typeof interceptor === 'function' ? interceptor : interceptor.interceptor;
-      let injectServices = this.resolveServices(this.getFunctionServices(interceptorFn, 1));
+      let injectServices = this.resolveServices(container, this.getFunctionServices(interceptorFn, 1));
       if (injectServices instanceof Error) {
         this.#logger.fatal(
           'Failed to resolve services from response interceptor!',
@@ -428,6 +436,7 @@ export class HTTPHandler {
   private async applyResponseInterceptors(
     responseOrError: HTTPResponse | Error,
     moment: TResponseInterceptionMoment,
+    container: AwilixContainer,
   ) {
 
     let response: HTTPResponse;
@@ -486,7 +495,7 @@ export class HTTPHandler {
     );
 
     for (const interceptorFn of applyInterceptors) {
-      let injectServices = this.resolveServices(this.getFunctionServices(interceptorFn, 1));
+      let injectServices = this.resolveServices(container, this.getFunctionServices(interceptorFn, 1));
       if (injectServices instanceof Error) {
         this.#logger.fatal(
           'Failed to resolve services from response interceptor!',
@@ -501,11 +510,12 @@ export class HTTPHandler {
   }
 
   private async applyGuards(
-    request: IHTTPRequestData
+    request: IHTTPRequestData,
+    container: AwilixContainer,
   ) {
     for (let guard of this.route.guards ?? []) {
       let guardFn = typeof guard === 'function' ? guard : guard.guard;
-      let guardServices = this.resolveServices(this.getFunctionServices(guardFn, 1));
+      let guardServices = this.resolveServices(container, this.getFunctionServices(guardFn, 1));
       if (guardServices instanceof Error) {
         this.#logger.fatal(
           'Failed to resolve services from request guard!',
@@ -526,9 +536,9 @@ export class HTTPHandler {
     return true as true;
   }
 
-  private resolveServices(serviceNames: string[]): unknown[] | MissingServiceInContainer {
+  private resolveServices(container: AwilixContainer, serviceNames: string[]): unknown[] | MissingServiceInContainer {
     try {
-      return serviceNames.map(name => this.container.resolve(name));
+      return serviceNames.map(name => container.resolve(name));
     } catch (err) {
       return new MissingServiceInContainer("Could not resolve service by its name! " + serviceNames.join(', '))
     }

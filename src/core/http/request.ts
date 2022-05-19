@@ -8,10 +8,10 @@ import type { HTTPIncomingHeaders, HTTPRoute } from './route.js';
 import type { HttpServer } from './server.js';
 
 export type TRequestBody = AnyZodObject;
-export type TRequestHeaders = Record<HTTPIncomingHeaders, ZodString>;
-export type TRequestCookies = Record<string, ZodString>;
-export type TRequestURLParams = Record<string, ZodString>;
-export type TRequestQueryParams = Record<string, ZodString | ZodNumber | ZodBoolean>;
+export type TRequestHeaders = { [name in HTTPIncomingHeaders]?: ZodString };
+export type TRequestCookies = { [name : string] : ZodString };
+export type TRequestURLParams = { [name : string] : ZodString };
+export type TRequestQueryParams = { [name : string] : ZodString | ZodNumber | ZodBoolean };
 export type TRequestFiles = Record<string, ZodType<PersistentFile, ZodTypeDef, PersistentFile>>;
 
 export interface IHTTPRequestData<
@@ -56,10 +56,10 @@ export interface IHTTPRequestData<
     [name in keyof NonNullable<Files>]: File
   };
 
-  provide( 
-    name : string, 
-    value : ( Class<any> | ((...args : any ) => any))| JsonValue 
-  ) : void;
+  provide(
+    name: string,
+    value: (Class<any> | ((...args: any) => any)) | JsonValue
+  ): void;
 
 }
 

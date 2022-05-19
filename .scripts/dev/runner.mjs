@@ -26,6 +26,7 @@ export class ProjectRunner extends EventEmitter {
     this.worker = new Worker(this.workerPath);
     this.worker.on('error', (err) => {
       console.log("Runner encountered and error!", err);
+
     });
     this.worker.once('exit', () => {
       this.worker = null;
@@ -46,6 +47,7 @@ export class ProjectRunner extends EventEmitter {
   }
 
   respawn() {
+    this.terminate();
     this.start();
   }
 

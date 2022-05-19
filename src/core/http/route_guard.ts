@@ -10,7 +10,7 @@ export type HTTPRouteGuard<
   Services extends unknown[] = unknown[],
   > = IHTTPRouteGuard<Body, Headers, Cookies, URLParams, QueryParams, Services> | THTTPRouteGuardFn<Body, Headers, Cookies, URLParams, QueryParams, Services>;
 
-interface IHTTPRouteGuard<
+export interface IHTTPRouteGuard<
   Body extends TRequestBody | undefined = undefined,
   Headers extends TRequestHeaders | undefined = undefined,
   Cookies extends TRequestCookies | undefined = undefined,
@@ -29,7 +29,7 @@ interface IHTTPRouteGuard<
   guard: THTTPRouteGuardFn<Body, Headers, Cookies, URLParams, QueryParams, Services>;
 }
 
-type THTTPRouteGuardFn<
+export type THTTPRouteGuardFn<
   Body extends TRequestBody | undefined = undefined,
   Headers extends TRequestHeaders | undefined = undefined,
   Cookies extends TRequestCookies | undefined = undefined,
