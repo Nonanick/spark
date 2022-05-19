@@ -1,6 +1,7 @@
 import type { THttpConfiguration } from "#config/http.config";
 import { container } from "#container";
 import { Logger } from "#logger";
+import type { AwilixContainer } from "awilix";
 import createRouter, { type HTTPMethod } from 'find-my-way';
 import { createServer, type Server } from 'node:http';
 import { createServer as createSSLServer, type Server as SSLServer } from 'node:https';
@@ -34,6 +35,12 @@ export class HttpServer {
 
   #logger = new Logger(HttpServer.name);
 
+  #container : AwilixContainer = container;
+
+  setDependencyContainer(container : AwilixContainer) {
+    this.#container = container;
+  }
+
   constructor(
     private httpConfiguration: THttpConfiguration
   ) {
@@ -62,12 +69,12 @@ export class HttpServer {
 
       this.#router.on(method, url, handler);
 
-      // let log: any = { method, url, };
-      // if (route.requestInterceptor!.length > 0) log["requestInterceptors"] = route.requestInterceptor!.map(i => i.name);
-      // if (route.responseInterceptor!.length > 0) log["responseInterceptors"] = route.responseInterceptor!.map(i => i.name);
-      // if (route.guards!.length > 0) log["guards"] = route.guards!.map(i => i.name);
+      let log: any = { method, url, };
+      if (route.requestInterceptor!.length > 0) log["requestInterceptors"] = route.requestInterceptor!.map(i => i.name);
+      if (route.responseInterceptor!.length > 0) log["responseInterceptors"] = route.responseInterceptor!.map(i => i.name);
+      if (route.guards!.length > 0) log["guards"] = route.guards!.map(i => i.name);
 
-      // this.#logger.info("Added route to server:", log);
+      this.#logger.info("Added route to server:", log);
     });
     this.#routes.push(...routes);
   }
@@ -91,8 +98,18 @@ export class HttpServer {
   }
 
   private createHandlerForRoute(route: HTTPRoute) {
-    let handler = new HTTPHandler(container.createScope(), route);
+    let handler = new HTTPHandler(this.#container.createScope(), route);
     this.#handlers.push(handler);
     return handler.handle.bind(handler);
+  }
+
+  async destroy() {
+    this.#router.reset();
+    if(this.#server.listening) {
+      this.#server.close();
+    }
+    this.#server.removeAllListeners();
+    this.#routes = [];
+    this.#handlers = [];
   }
 }

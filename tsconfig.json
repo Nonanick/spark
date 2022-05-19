@@ -40,7 +40,8 @@
       ],
       "#logger": [
         "core/logger/logger.js"
-      ]
+      ],
+      "#test/*" : ["test/*"]
     },
     "allowJs": true,
     "declaration": true,

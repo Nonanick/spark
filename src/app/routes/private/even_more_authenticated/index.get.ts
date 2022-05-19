@@ -1,4 +1,4 @@
-import type { IAuthenticatedUser } from "#common/authenticate_user.guard";
+import type { IAuthenticatedUser } from "#common/guards/authenticate_user";
 import { createRoute } from "#http/route";
 
 export default createRoute({

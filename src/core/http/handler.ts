@@ -1,19 +1,15 @@
-import type { THttpConfiguration } from "#config/http.config";
-import { container } from "#container";
 import { MissingServiceInContainer } from "#container/missing_service.error";
 import { Logger } from "#logger";
-import { deepmerge } from "#utils/deepmerge";
-import { isClass } from "#utils/is_class";
-import { isFunction } from "#utils/is_function";
-import { asClass, asFunction, asValue, AwilixContainer, Lifetime } from "awilix";
+import { toResolver } from "#utils/to_resolver";
+import { AwilixContainer, Lifetime } from "awilix";
 import type { HTTPMethod } from "find-my-way";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Class, JsonValue, PartialDeep } from "type-fest";
+import type { Class, JsonValue } from "type-fest";
 import type { AnyZodObject } from "zod";
-import { BadRequest, InternalServerError, NotAcceptable, Unauthorized } from "./http_error.js";
+import { BadRequest, InternalServerError, Unauthorized } from "./http_error.js";
 import type { HTTPResponseInterceptor, TInterceptHTTPResponseFn, TResponseInterceptionMoment } from "./interceptors.js";
-import { bodyParser, parseBodyIntoRequest } from "./parse/body.js";
+import { parseBodyIntoRequest } from "./parse/body.js";
 import { cookieParser } from "./parse/cookies.js";
 import { queryParamsParser } from "./parse/queryParams.js";
 import type { IHTTPRequestData, TRequestBody, TRequestCookies, TRequestHeaders, TRequestQueryParams, TRequestURLParams } from "./request.js";
@@ -223,17 +219,7 @@ export class HTTPHandler {
       queryParams: undefined,
       urlParams: undefined,
       provide: (name: string, value: Class<any> | JsonValue | ((...args: any) => any)) => {
-
-        if (isClass(value)) {
-          container.register(name, asClass(value, { lifetime: Lifetime.SCOPED }));
-          return;
-        }
-
-        if (isFunction(value)) {
-          container.register(name, asFunction(value, { lifetime: Lifetime.SCOPED }));
-          return;
-        }
-        container.register(name, asValue(value))
+        return container.register(name, toResolver(value, Lifetime.SCOPED));
       }
     };
 

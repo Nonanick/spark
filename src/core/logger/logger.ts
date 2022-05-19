@@ -98,12 +98,13 @@ export class Logger {
 
   dev(msg: string, ...objs: unknown[]) {
     if (colorizer == null) colorizer = new Chalk();
+
     if (Logger.devOutput) {
       process.stdout.write('\n' + colorizer!.bold(msg) + '\n');
       objs.forEach(o => {
         let out = prettyPrintJson(o);
-        if (process.stdout.columns > (out.replace(/(\s+|\n)/, ' ').length)) {
-          process.stdout.write('| - ' + out.replace(/(\s+|\n+)/g, ' ').replace(/\s+/g, ' '));
+        if (process.stdout.columns ?? 100 > inlineOutput(out).length) {
+          process.stdout.write('| - ' + inlineOutput(out));
         } else {
           process.stdout.write(out);
         }
@@ -119,6 +120,9 @@ export class Logger {
   }
 }
 
+function inlineOutput(out : string) {
+  return out.replace(/\n/gm, '').replace(/\s+/gm, ' ').replace(/(\[\s+|{\s+)/gm, '')
+}
 let colorizer: ChalkInstance | undefined;
 
 export function prettyPrintJson(value: any, depth = 0, inline = false) {
@@ -157,10 +161,10 @@ export function prettyPrintJson(value: any, depth = 0, inline = false) {
       const shouldJump = i % jumpWhen === jumpWhen - 1;
       const justJumped = i % jumpWhen === 0;
 
-      justJumped && print(" ".repeat((1 + depth) * 2));
+      multilinePrint && justJumped && print(" ".repeat((1 + depth) * 2));
       print(prettyPrintJson(v, depth + 1, true));
       print(', ');
-      shouldJump && print("\n");
+      multilinePrint && shouldJump && print("\n");
     });
     multilinePrint && print('\n' + " ".repeat(depth * 2))
     return print(colorizer!.yellow(']'));

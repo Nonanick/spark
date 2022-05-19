@@ -5,7 +5,7 @@ import { promises as fs } from 'fs';
 import EventEmitter from 'node:events';
 
 const chalk = await import('chalk');
-const colorize  =new chalk.Chalk();
+const colorize = new chalk.Chalk();
 
 export class ProjectBuilder extends EventEmitter {
 
@@ -50,7 +50,7 @@ export class ProjectBuilder extends EventEmitter {
       });
     });
 
-    this.#fileWatcher.on('change',  async (file) => {
+    this.#fileWatcher.on('change', async (file) => {
       if (this.#mode === 'batch') {
         this.#files.push(file);
       } else {
@@ -71,49 +71,45 @@ export class ProjectBuilder extends EventEmitter {
 
   async build(file) {
     this.emit('will-build');
-    if(typeof file === 'string') {
+    if (typeof file === 'string') {
       let result = await build({
         bundle: false,
         write: true,
         incremental: false,
-        outfile : path.join(this.outputDirectory, file.replace(/\.ts$/, '.js')),
+        outfile: path.join(this.outputDirectory, file.replace(/\.ts$/, '.js')),
         platform: 'node',
         sourcemap: "linked",
         target: "esnext",
         ignoreAnnotations: true,
-        watch : false,
-        metafile : true,
+        watch: false,
         entryPoints: [path.join(this.projectRoot, file)],
       }).catch(err => {
         console.error("Failed to build file", err);
       }).then(r => {
         this.notify(Array.isArray(file) ? file : [file]);
-        return r.metafile;
       });
       return result;
-    } else { 
-    let result = await build({
-      absWorkingDir : path.join(this.projectRoot,'..'),
-      bundle: false,
-      write: true,
-      incremental: false,
-      sourceRoot : 'src',
-      outdir: 'dist',
-      platform: 'node',
-      sourcemap: "linked",
-      target: "esnext",
-      ignoreAnnotations: true,
-      watch : false,
-      metafile : true,
-      entryPoints: file,
-    }).catch(err => {
-      console.error("Failed to build files", err);
-    }).then(r => {
-      this.notify(Array.isArray(file) ? file : [file]);
-      return r.metafile;
-    });
-    return result;
-  }
+    } else {
+      let result = await build({
+        absWorkingDir: path.join(this.projectRoot, '..'),
+        bundle: false,
+        write: true,
+        incremental: false,
+        sourceRoot: 'src',
+        outdir: 'dist',
+        platform: 'node',
+        sourcemap: "linked",
+        target: "esnext",
+        ignoreAnnotations: true,
+        watch: false,
+        entryPoints: file,
+      }).catch(err => {
+        console.error("Failed to build files", err);
+      }).then(r => {
+        this.notify(Array.isArray(file) ? file : [file]);
+      });
+      return result;
+    }
 
   }
 
