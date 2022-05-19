@@ -1,4 +1,4 @@
-import { createGuard } from "#http/route_guard";
+import { createGuard } from "#http/guard";
 import { z } from "zod";
 
 export default createGuard({

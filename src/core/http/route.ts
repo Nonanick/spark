@@ -3,7 +3,7 @@ import type { HTTPMethod } from "find-my-way";
 import type { PartialDeep } from "type-fest";
 import type { HTTPRequestInterceptor, HTTPResponseInterceptor } from "./interceptors.js";
 import type { TRequestType, TRequestBody, TRequestCookies, TRequestFiles, TRequestHeaders, TRequestQueryParams, TRequestURLParams } from "./request.js";
-import type { HTTPRouteGuard } from "./route_guard.js";
+import type { HTTPRouteGuard } from "./guard.js";
 
 /**
  * [HTTP] Route

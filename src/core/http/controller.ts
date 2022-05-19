@@ -1,9 +1,8 @@
 import { Logger } from "#logger";
-import type { AnyZodObject } from "zod";
-import type { HTTPRequestInterceptor, HTTPResponseInterceptor } from "./interceptors";
-import type { TRequestBody, TRequestCookies, TRequestHeaders, TRequestQueryParams, TRequestURLParams } from "./request";
-import type { HTTPRoute } from "./route";
-import type { HTTPRouteGuard } from "./route_guard";
+import type { HTTPRequestInterceptor, HTTPResponseInterceptor } from "./interceptors.js";
+import type { TRequestBody, TRequestCookies, TRequestHeaders, TRequestQueryParams, TRequestURLParams } from "./request.js";
+import type { HTTPRoute } from "./route.js";
+import type { HTTPRouteGuard } from "./guard.js";
 
 export class HTTPController<
   Body extends TRequestBody | undefined = undefined,
