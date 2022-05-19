@@ -2,7 +2,7 @@ import type { AwilixContainer } from 'awilix';
 import type { HTTPMethod } from "find-my-way";
 import type { File } from 'formidable';
 import type PersistentFile from 'formidable/PersistentFile';
-import type { Merge } from 'type-fest';
+import type { Class, JsonValue, Merge } from 'type-fest';
 import type { AnyZodObject, TypeOf, ZodBoolean, ZodNumber, ZodString, ZodType, ZodTypeDef } from 'zod';
 import type { HTTPIncomingHeaders, HTTPRoute } from './route.js';
 import type { HttpServer } from './server.js';
@@ -55,6 +55,11 @@ export interface IHTTPRequestData<
   files?: Files extends null | undefined ? never : {
     [name in keyof NonNullable<Files>]: File
   };
+
+  provide( 
+    name : string, 
+    value : ( Class<any> | ((...args : any ) => any))| JsonValue 
+  ) : void;
 
 }
 

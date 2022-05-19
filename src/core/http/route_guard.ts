@@ -18,7 +18,14 @@ interface IHTTPRouteGuard<
   QueryParams extends TRequestQueryParams | undefined = undefined,
   Services extends unknown[] = unknown[],
   > {
-  name: string;
+  name?: string;
+
+  body?: Body;
+  headers?: Headers;
+  cookies?: Cookies;
+  urlParams?: URLParams;
+  queryParams?: QueryParams;
+
   guard: THTTPRouteGuardFn<Body, Headers, Cookies, URLParams, QueryParams, Services>;
 }
 
@@ -35,3 +42,18 @@ type THTTPRouteGuardFn<
   ) =>
     | boolean | HTTPResponse
     | Promise<boolean | HTTPResponse>;
+
+export function createGuard<
+  Body extends TRequestBody | undefined = undefined,
+  Headers extends TRequestHeaders | undefined = undefined,
+  Cookies extends TRequestCookies | undefined = undefined,
+  URLParams extends TRequestURLParams | undefined = undefined,
+  QueryParams extends TRequestQueryParams | undefined = undefined,
+  Services extends unknown[] = unknown[],
+  >(options: IHTTPRouteGuard<Body, Headers, Cookies, URLParams, QueryParams, Services>) {
+
+  const g: IHTTPRouteGuard<Body, Headers, Cookies, URLParams, QueryParams, Services> = {
+    ...options
+  };
+  return g;
+}

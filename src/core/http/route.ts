@@ -170,7 +170,7 @@ export function createRoute<
   QueryParams extends TRequestQueryParams | undefined = undefined,
   Files extends TRequestFiles | undefined = undefined,
   Services extends unknown[] = unknown[]
->(options: ICreateRouteOptions<Body, Headers, Cookies, URLParams, QueryParams, Files, Services>) {
+>(options: Omit<ICreateRouteOptions<Body, Headers, Cookies, URLParams, QueryParams, Files, Services>, "provide">) {
 
   const route = new HTTPRoute<Body, Headers, Cookies, URLParams, QueryParams, Files, Services>();
 

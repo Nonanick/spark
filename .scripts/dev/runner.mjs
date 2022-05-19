@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export class ProjectRunner extends EventEmitter {
-  
+
   workerPath = '';
 
   /**
@@ -18,16 +18,20 @@ export class ProjectRunner extends EventEmitter {
   }
 
   start() {
-    if(this.worker != null) {
+    if (this.worker != null) {
       this.worker.terminate();
     }
 
-    this.workerPath = path.join(path.dirname(fileURLToPath(import.meta.url)),'..','project_worker.mjs');
+    this.workerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'project_worker.mjs');
     this.worker = new Worker(this.workerPath);
     this.worker.on('error', (err) => {
       console.log("Runner encountered and error!", err);
     });
-    this.worker.on("exit", this.autoRespawn);
+    this.worker.once('exit', () => {
+      this.worker = null;
+      console.log("Waiting for the next change in project to respawn!");
+    });
+    //this.worker.on("exit", this.autoRespawn);
   }
 
   autoRespawn() {
@@ -36,39 +40,37 @@ export class ProjectRunner extends EventEmitter {
   }
 
   terminate() {
-    if(this.worker != null) {
-      this.worker.off('exit', this.autoRespawn);
+    if (this.worker != null) {
       this.worker.terminate();
     }
   }
 
   respawn() {
-    this.terminate();
     this.start();
   }
 
   reloadRoutesFrom(location) {
-    if(this.worker != null) {
+    if (this.worker != null) {
       this.worker.postMessage(JSON.stringify({
-        type : 'route',
+        type: 'route',
         location
       }));
     }
   }
 
   reloadControllersFrom(location) {
-    if(this.worker != null) {
+    if (this.worker != null) {
       this.worker.postMessage(JSON.stringify({
-        type : 'controller',
+        type: 'controller',
         location
       }));
     }
   }
 
   reloadServicesFrom(location) {
-    if(this.worker != null) {
+    if (this.worker != null) {
       this.worker.postMessage(JSON.stringify({
-        type : 'service',
+        type: 'service',
         location
       }));
     }

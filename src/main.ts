@@ -15,8 +15,6 @@ import { fileURLToPath } from 'node:url';
 // load .env file
 loadEnvVariables();
 
-process.setMaxListeners(40);
-
 // register configurations
 container.register({
   appConfiguration : asValue(AppConfiguration),

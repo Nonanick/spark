@@ -3,12 +3,14 @@ import { container } from "#container";
 import { MissingServiceInContainer } from "#container/missing_service.error";
 import { Logger } from "#logger";
 import { deepmerge } from "#utils/deepmerge";
-import type { AwilixContainer } from "awilix";
+import { isClass } from "#utils/is_class.js";
+import { isFunction } from "#utils/is_function.js";
+import { asClass, asFunction, asValue, AwilixContainer, Lifetime } from "awilix";
 import type { HTTPMethod } from "find-my-way";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { PartialDeep } from "type-fest";
-import { any } from "zod";
+import type { Class, JsonValue, PartialDeep } from "type-fest";
+import type { AnyZodObject } from "zod";
 import { BadRequest, InternalServerError, NotAcceptable, Unauthorized } from "./http_error.js";
 import type { HTTPResponseInterceptor, TInterceptHTTPResponseFn, TResponseInterceptionMoment } from "./interceptors.js";
 import { bodyParser } from "./parse/body.js";
@@ -36,16 +38,119 @@ export class HTTPHandler {
 
   #responseInterceptorsByMoment?: Record<TResponseInterceptionMoment, HTTPResponseInterceptor[]>;
 
+  // schemas, contributed by route handlers, guards and interceptor
+  body?: TRequestBody;
+  headers?: TRequestHeaders;
+  cookies?: TRequestCookies;
+  urlParams?: TRequestURLParams;
+  queryParams?: TRequestQueryParams;
+
   constructor(
     private container: AwilixContainer,
     private route: HTTPRoute
   ) {
     this.#logger = new Logger(`${HTTPHandler.name}::${route.method?.toLocaleUpperCase() ?? 'GET'}"${route.url ?? '/'}"`);
+
+    // build this handler schemas
+    // 1. Contribution from interceptors
+    for (let contributor of this.route.requestInterceptor ?? []) {
+      // ignore guard functions
+      if (typeof contributor === 'function') continue;
+
+      if (contributor.body != null) {
+        if (this.body != null) this.body = (contributor.body as AnyZodObject).merge(this.body);
+        else this.body = contributor.body;
+      }
+
+      if (contributor.headers != null) {
+        if (this.headers != null) this.headers = { ...contributor.headers! as TRequestHeaders, ...this.headers };
+        else this.headers = contributor.headers;
+      }
+
+      if (contributor.cookies != null) {
+        if (this.cookies != null) this.cookies = { ...contributor.cookies! as TRequestCookies, ...this.cookies };
+        else this.cookies = contributor.cookies;
+      }
+
+      if (contributor.urlParams != null) {
+        if (this.urlParams != null)
+          this.urlParams = { ...contributor.urlParams! as TRequestURLParams, ...this.urlParams };
+        else this.urlParams = contributor.urlParams;
+      }
+
+      if (contributor.queryParams != null) {
+        if (this.queryParams != null) this.queryParams = { ...contributor.queryParams! as TRequestURLParams, ...this.queryParams };
+        else this.queryParams = contributor.queryParams;
+      }
+    }
+
+    // 2. Contribution from guards
+    for (let contributor of this.route.guards ?? []) {
+      // ignore guard functions
+      if (typeof contributor === 'function') continue;
+
+      if (contributor.body != null) {
+        if (this.body != null) this.body = (contributor.body as AnyZodObject).merge(this.body);
+        else this.body = contributor.body;
+      }
+
+      if (contributor.headers != null) {
+        if (this.headers != null) this.headers = { ...contributor.headers! as TRequestHeaders, ...this.headers };
+        else this.headers = contributor.headers;
+      }
+
+      if (contributor.cookies != null) {
+        if (this.cookies != null) this.cookies = { ...contributor.cookies! as TRequestCookies, ...this.cookies };
+        else this.cookies = contributor.cookies;
+      }
+
+      if (contributor.urlParams != null) {
+        if (this.urlParams != null)
+          this.urlParams = { ...contributor.urlParams! as TRequestURLParams, ...this.urlParams };
+        else this.urlParams = contributor.urlParams;
+      }
+
+      if (contributor.queryParams != null) {
+        if (this.queryParams != null) this.queryParams = { ...contributor.queryParams! as TRequestURLParams, ...this.queryParams };
+        else this.queryParams = contributor.queryParams;
+      }
+    }
+
+    // 3. Contribution from the route itself
+    const contributor = this.route;
+
+    if (contributor.body != null) {
+      if (this.body != null) this.body = (contributor.body as AnyZodObject).merge(this.body);
+      else this.body = contributor.body;
+    }
+
+    if (contributor.headers != null) {
+      if (this.headers != null) this.headers = { ...contributor.headers! as TRequestHeaders, ...this.headers };
+      else this.headers = contributor.headers;
+    }
+
+    if (contributor.cookies != null) {
+      if (this.cookies != null) this.cookies = { ...contributor.cookies! as TRequestCookies, ...this.cookies };
+      else this.cookies = contributor.cookies;
+    }
+
+    if (contributor.urlParams != null) {
+      if (this.urlParams != null)
+        this.urlParams = { ...contributor.urlParams! as TRequestURLParams, ...this.urlParams };
+      else this.urlParams = contributor.urlParams;
+    }
+
+    if (contributor.queryParams != null) {
+      if (this.queryParams != null) this.queryParams = { ...contributor.queryParams! as TRequestURLParams, ...this.queryParams };
+      else this.queryParams = contributor.queryParams;
+    }
+
   }
 
   async handle(req: IncomingMessage, res: ServerResponse, urlParams: Record<string, string | undefined>) {
-
-    let request = await this.forgeRequest(req, urlParams);
+    // make a resolver only for this request
+    const requestContainer = this.container.createScope();
+    let request = await this.forgeRequest(req, urlParams, requestContainer);
 
     // If it returned a http response or an error a validation error ocurred!
     if (request instanceof HTTPResponse || request instanceof Error) {
@@ -139,7 +244,7 @@ export class HTTPHandler {
     return handlerResponse.send(res);
   }
 
-  private async forgeRequest(req: IncomingMessage, urlParams: Record<string, string | undefined>) {
+  private async forgeRequest(req: IncomingMessage, urlParams: Record<string, string | undefined>, container: AwilixContainer) {
     const route = this.route;
 
     // 1: define id, method and url
@@ -157,13 +262,26 @@ export class HTTPHandler {
       files: undefined,
       queryParams: undefined,
       urlParams: undefined,
+      provide: (name: string, value: Class<any> | JsonValue | ((...args: any) => any)) => {
+
+        if (isClass(value)) {
+          container.register(name, asClass(value, { lifetime: Lifetime.SCOPED }));
+          return;
+        }
+
+        if (isFunction(value)) {
+          container.register(name, asFunction(value, { lifetime: Lifetime.SCOPED }));
+          return;
+        }
+        container.register(name, asValue(value))
+      }
     };
 
     // 2: check if body schema is present
-    if (route.body != null) {
+    if (this.body != null) {
       await parseBodyIntoRequest(req, request, route,);
       // validate body
-      let parsedBody = (route.body as TRequestBody).safeParse(request.body);
+      let parsedBody = (this.body as TRequestBody).safeParse(request.body);
       if (!parsedBody.success) {
         return new BadRequest("Incorrect body arguments!" + parsedBody.error.toString())
       }
@@ -171,9 +289,9 @@ export class HTTPHandler {
     }
 
     //  3: check if there are required headers
-    if (route.headers != null) {
-      for (let headerKey in (route.headers as TRequestHeaders)) {
-        let parser = (route.headers as TRequestHeaders)[headerKey];
+    if (this.headers != null) {
+      for (let headerKey in (this.headers as TRequestHeaders)) {
+        let parser = (this.headers as TRequestHeaders)[headerKey];
         let value = (request.headers as any)[headerKey];
         let parsed = parser.safeParse(value);
         if (!parsed.success) {
@@ -187,11 +305,11 @@ export class HTTPHandler {
     }
 
     // 4: check for cookies
-    if (route.cookies != null) {
+    if (this.cookies != null) {
       request.cookies = {} as any;
       let parsedCookies = cookieParser(req.headers['cookie'] ?? '');
-      for (let cookieKey in (route.cookies as TRequestCookies)) {
-        let parser = (route.cookies as TRequestCookies)[cookieKey];
+      for (let cookieKey in (this.cookies as TRequestCookies)) {
+        let parser = (this.cookies as TRequestCookies)[cookieKey];
         let value = parsedCookies[cookieKey];
         let parsed = parser.safeParse(value);
         if (!parsed.success) {
@@ -205,10 +323,10 @@ export class HTTPHandler {
     }
 
     // 5: check for url params
-    if (route.urlParams != null) {
+    if (this.urlParams != null) {
       request.urlParams = {} as any;
-      for (let urlKey in (route.urlParams as TRequestURLParams)) {
-        let parser = (route.urlParams as TRequestURLParams)[urlKey];
+      for (let urlKey in (this.urlParams as TRequestURLParams)) {
+        let parser = (this.urlParams as TRequestURLParams)[urlKey];
         let value = urlParams[urlKey];
         let parsed = parser.safeParse(value);
         if (!parsed.success) {
@@ -222,11 +340,11 @@ export class HTTPHandler {
     }
 
     // 6: check for query params
-    if (route.queryParams != null) {
+    if (this.queryParams != null) {
       request.queryParams = {} as any;
       let parsedQueryParams = queryParamsParser(req.url ?? '');
-      for (let queryKey in (route.queryParams as TRequestQueryParams)) {
-        let parser = (route.queryParams as TRequestQueryParams)[queryKey];
+      for (let queryKey in (this.queryParams as TRequestQueryParams)) {
+        let parser = (this.queryParams as TRequestQueryParams)[queryKey];
         let value = parsedQueryParams[queryKey];
         let parsed = parser.safeParse(value);
         if (!parsed.success) {
