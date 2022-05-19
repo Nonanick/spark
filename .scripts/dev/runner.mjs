@@ -1,8 +1,8 @@
 // @ts-check
 import EventEmitter from "node:events";
-import { Worker } from "node:worker_threads";
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import { Worker } from "node:worker_threads";
 
 export class ProjectRunner extends EventEmitter {
 
@@ -29,20 +29,19 @@ export class ProjectRunner extends EventEmitter {
 
     });
     this.worker.once('exit', () => {
-      this.worker = null;
       console.log("Waiting for the next change in project to respawn!");
     });
     //this.worker.on("exit", this.autoRespawn);
   }
 
   autoRespawn() {
-    this.worker = null;
     this.start();
   }
 
   terminate() {
     if (this.worker != null) {
       this.worker.terminate();
+      this.worker = null;
     }
   }
 

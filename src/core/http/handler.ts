@@ -13,7 +13,7 @@ import type { Class, JsonValue, PartialDeep } from "type-fest";
 import type { AnyZodObject } from "zod";
 import { BadRequest, InternalServerError, NotAcceptable, Unauthorized } from "./http_error.js";
 import type { HTTPResponseInterceptor, TInterceptHTTPResponseFn, TResponseInterceptionMoment } from "./interceptors.js";
-import { bodyParser } from "./parse/body.js";
+import { bodyParser, parseBodyIntoRequest } from "./parse/body.js";
 import { cookieParser } from "./parse/cookies.js";
 import { queryParamsParser } from "./parse/queryParams.js";
 import type { IHTTPRequestData, TRequestBody, TRequestCookies, TRequestHeaders, TRequestQueryParams, TRequestURLParams } from "./request.js";
@@ -51,74 +51,26 @@ export class HTTPHandler {
   ) {
     this.#logger = new Logger(`${HTTPHandler.name}::${route.method?.toLocaleUpperCase() ?? 'GET'}"${route.url ?? '/'}"`);
 
-    // build this handler schemas
-    // 1. Contribution from interceptors
+    // 1. Schemas contributions from interceptors
     for (let contributor of this.route.requestInterceptor ?? []) {
-      // ignore guard functions
+      // ignore interceptor functions
       if (typeof contributor === 'function') continue;
-
-      if (contributor.body != null) {
-        if (this.body != null) this.body = (contributor.body as AnyZodObject).merge(this.body);
-        else this.body = contributor.body;
-      }
-
-      if (contributor.headers != null) {
-        if (this.headers != null) this.headers = { ...contributor.headers! as TRequestHeaders, ...this.headers };
-        else this.headers = contributor.headers;
-      }
-
-      if (contributor.cookies != null) {
-        if (this.cookies != null) this.cookies = { ...contributor.cookies! as TRequestCookies, ...this.cookies };
-        else this.cookies = contributor.cookies;
-      }
-
-      if (contributor.urlParams != null) {
-        if (this.urlParams != null)
-          this.urlParams = { ...contributor.urlParams! as TRequestURLParams, ...this.urlParams };
-        else this.urlParams = contributor.urlParams;
-      }
-
-      if (contributor.queryParams != null) {
-        if (this.queryParams != null) this.queryParams = { ...contributor.queryParams! as TRequestURLParams, ...this.queryParams };
-        else this.queryParams = contributor.queryParams;
-      }
+      this.addSchema(contributor);
     }
 
-    // 2. Contribution from guards
+    // 2. Schemas contributions from guards
     for (let contributor of this.route.guards ?? []) {
       // ignore guard functions
       if (typeof contributor === 'function') continue;
-
-      if (contributor.body != null) {
-        if (this.body != null) this.body = (contributor.body as AnyZodObject).merge(this.body);
-        else this.body = contributor.body;
-      }
-
-      if (contributor.headers != null) {
-        if (this.headers != null) this.headers = { ...contributor.headers! as TRequestHeaders, ...this.headers };
-        else this.headers = contributor.headers;
-      }
-
-      if (contributor.cookies != null) {
-        if (this.cookies != null) this.cookies = { ...contributor.cookies! as TRequestCookies, ...this.cookies };
-        else this.cookies = contributor.cookies;
-      }
-
-      if (contributor.urlParams != null) {
-        if (this.urlParams != null)
-          this.urlParams = { ...contributor.urlParams! as TRequestURLParams, ...this.urlParams };
-        else this.urlParams = contributor.urlParams;
-      }
-
-      if (contributor.queryParams != null) {
-        if (this.queryParams != null) this.queryParams = { ...contributor.queryParams! as TRequestURLParams, ...this.queryParams };
-        else this.queryParams = contributor.queryParams;
-      }
+      this.addSchema(contributor);
     }
 
-    // 3. Contribution from the route itself
-    const contributor = this.route;
+    // 3. Schemas contribution from the route handler itself
+    this.addSchema(route);
 
+  }
+
+  addSchema(contributor: IContributeSchema) {
     if (contributor.body != null) {
       if (this.body != null) this.body = (contributor.body as AnyZodObject).merge(this.body);
       else this.body = contributor.body;
@@ -144,12 +96,12 @@ export class HTTPHandler {
       if (this.queryParams != null) this.queryParams = { ...contributor.queryParams! as TRequestURLParams, ...this.queryParams };
       else this.queryParams = contributor.queryParams;
     }
-
   }
 
   async handle(req: IncomingMessage, res: ServerResponse, urlParams: Record<string, string | undefined>) {
-    // make a resolver only for this request
+    // make a dependency injection scope only for this request
     const container = this.container.createScope();
+
     let request = await this.forgeRequest(req, urlParams, container);
 
     // If it returned a http response or an error a validation error ocurred!
@@ -572,188 +524,13 @@ export class HTTPHandler {
 const STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 const ARGUMENT_NAMES = /([^\s,]+)/g;
 
-/**
- * Default contentType by RFC 2616
- * 
- * "If and only if the media type is not given by a Content-Type field, the recipient MAY attempt to guess the media 
- * type via inspection of its content and/or the name extension of the URI used to identify the resource. If the media type remains unknown, 
- * the recipient SHOULD treat it as type "application/octet-stream"
- * 
- * @link https://www.w3.org/Protocols/rfc2616/rfc2616-sec7.html#sec7.2.1
- */
-const DEFAULT_CONTENT_TYPE = (route: HTTPRoute) => {
-  /** 
-   * Since, by the RFC, we are allowed to "guess" the content-type, 
-   * if its not present, we shall "rely" on the route schemas to guess it  
-   */
-
-  // So we will assume "application/json" if no "files" schema is present and "multipart/form-data" otherwise
-  if (route.files != null) return 'multipart/form-data';
-  return 'application/json';
-};
-
-async function parseBodyIntoRequest(
-  body: IncomingMessage,
-  request: IHTTPRequestData,
-  route: HTTPRoute
-) {
-
-  // content type should be case-insensitive, lowercasing them all
-  const contentType = parseContentType(body.headers['content-type']?.toLocaleLowerCase() ?? DEFAULT_CONTENT_TYPE(route));
-
-  //should we do smt about encoding? nodejs handles it for us?
-  //const contentEncoding = body.headers['content-encoding'] ?? '';
-
-  const routeConfig = getCompleteRouteConfig(route);
-
-  switch (contentType.type) {
-    case 'application/json':
-      const parsedJSONResponse = await bodyParser['application/json'](body, {
-        charset: contentType.params.charset,
-        maxBodySize: routeConfig.body.maxBodySize,
-      });
-      request.body = parsedJSONResponse;
-      return request;
-    case 'application/x-www-form-urlencoded':
-      const parsedURLEncodedResponse = await bodyParser['application/x-www-form-urlencoded'](body, {
-        charset: contentType.params.charset,
-        maxBodySize: routeConfig.body.maxBodySize,
-      });
-      request.body = parsedURLEncodedResponse;
-      return request;
-    case 'text/plain':
-      const parsedTextResponse = await bodyParser['text/plain'](body, {
-        charset: contentType.params.charset,
-        maxBodySize: routeConfig.body.maxBodySize,
-      });
-      request.body = parsedTextResponse as any;
-      return request;
-    case 'multipart/form-data':
-      const parsedMulipart = await bodyParser['multipart/form-data'](body, {
-        maxBodySize: routeConfig.body.maxBodySize,
-        acceptMime: routeConfig.files.acceptMimes,
-        maxFiles: routeConfig.files.maxFiles,
-        maxFileSize: routeConfig.files.maxFileSize,
-        minimumFileSize: routeConfig.files.minimunFileSize,
-      });
-      request.body = parsedMulipart.fields as any;
-      request.files = parsedMulipart.files as any;
-      return request;
-    default:
-      throw new NotAcceptable("The content-type provided (" + contentType.type + ") is not suported by this server!")
-  }
-}
-
-/**
- * Parse "content-type" header
- * ----------------------------
- * 
- * Header should respect the following format:
- *  "type/subtype; paramKey=paramValue"
- * 
- * - If a mime type is "known" to the server we shall return the default charset defined by the RFC
- * - If a mime type is not "known" return utf8 as default
- * - For multipart the boundary is required and this function will throw when this condition is not met 
- * 
- * ___"known" actually means "know how to handle", a mime can be defined by IANA but may not be contemplated in the code___
- * @param typeString 
- * @returns {ContentTypeParams}
- */
-function parseContentType(typeString: string): ContentTypeParams {
-  let type: string;
-
-  let ioSeparator = typeString.indexOf(';');
-
-  // no separator for content-type!
-  if (ioSeparator < 0) {
-    type = typeString.trim();
-    switch (type) {
-      /**
-       * Default charset for urlencoded is '7bit' but, by the nodejs documentation:
-       * "Generally, there should be no reason to use this encoding, as 'utf8' (or, if the data 
-       * is known to always be ASCII-only, 'latin1') will be a better choice when encoding or 
-       * decoding ASCII-only text. It is only provided for legacy compatibility."
-       * 
-       * @link https://www.iana.org/assignments/media-types/application/x-www-form-urlencoded
-       * @link https://nodejs.org/api/buffer.html#buffers-and-character-encodings
-       */
-      case 'application/x-www-form-urlencoded':
-        return { type, params: { charset: 'utf8' } };
-      /**
-       * Default charset for application/json is 'binary' in node it is an alias for 'latin1'
-       * @link https://www.iana.org/assignments/media-types/application/json
-       */
-      case 'application/json':
-        return { type, params: { charset: 'latin1' } };
-      /**
-       * Default charset for 'text/*' media is us-ascii, as denoted in previous comments 'utf-8' 
-       * is best as a general purpose decoder
-       */
-      case 'text/plain':
-        return { type, params: { charset: 'utf8' } };
-      /**
-       * In multipart the boundary is a required paramete!
-       */
-      case 'multipart/form-data':
-        throw new BadRequest("multipart/form-data requires that the 'boundary' parameter in content-type header to be set, none found!");
-      default:
-        /**
-         * For an unknown content type we shall default to utf8, the requets will probably panic
-         * since there wont be a known parser for the content-type provided!
-         * If there is this piece of code should be updated...
-         */
-        return { type, params: { charset: 'utf8' } } as CharsetParams;
-    }
-  } else {
-    let type = typeString.substring(0, ioSeparator).trim();
-    let params = typeString.substring(ioSeparator + 1).trim();
-    switch (type) {
-      case 'multipart/form-data':
-        let matchesWithboundary = params.match(/^boundary=(?<boundary>.+)$/);
-        if (matchesWithboundary != null) return { type, params: { boundary: matchesWithboundary.groups!.boundary } };
-        else throw new BadRequest("multipart/form-data requires that the 'boundary' parameter in content-type header to be set, none found!");
-      default:
-        let ioEq = params.indexOf('=')
-        if (ioEq < 0) {
-          return { type, params: { charset: 'utf8' } } as CharsetParams;
-        }
-        let paramKey = params.substring(0, ioEq);
-        let paramValue = paramKey.substring(ioEq + 1);
-        return { type, params: { [paramKey]: paramValue } } as ContentTypeParams;
-    }
-  }
-}
-
-type ContentTypeParams = MultipartParams | CharsetParams | UnknownParams;
-
-interface CharsetParams {
-  type: 'text/plain' | 'application/json' | 'application/x-www-form-urlencoded';
-  params: {
-    charset: string;
-  }
-}
-
-interface MultipartParams {
-  type: 'multipart/form-data';
-  params: {
-    boundary: string;
-  }
-}
-
-interface UnknownParams {
-  type: string;
-  params: Record<string, string>;
-}
-
-function getCompleteRouteConfig(
-  options?: PartialDeep<THttpConfiguration['route']>
-): THttpConfiguration['route'] {
-  const defaultConfig = container.resolve<THttpConfiguration>('httpConfiguration');
-
-  return deepmerge(
-    defaultConfig.route,
-    options as any
-  );
-}
 
 const DEFAULT_INTERCEPTION_MOMENT: TResponseInterceptionMoment = 'handler-finished-with-ok-response';
+
+interface IContributeSchema {
+  body?: TRequestBody;
+  headers?: TRequestHeaders;
+  cookies?: TRequestCookies;
+  urlParams?: TRequestURLParams;
+  queryParams?: TRequestQueryParams;
+}
