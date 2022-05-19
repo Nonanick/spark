@@ -121,7 +121,7 @@ export class Logger {
 }
 
 function inlineOutput(out : string) {
-  return out.replace(/\n/gm, '').replace(/\s+/gm, ' ').replace(/(\[\s+|{\s+)/gm, '')
+  return out.replace(/\n/gm, '').replace(/\s+/gm, ' ').replace(/(\[|{)\s+/gm, '$1')
 }
 let colorizer: ChalkInstance | undefined;
 

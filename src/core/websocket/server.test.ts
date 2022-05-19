@@ -1,23 +1,30 @@
+import { HttpConfiguration } from '#config/http.config';
+import { LoggerConfiguration } from '#config/logger.config';
+import { container } from '#container';
 import { HTTPRoute } from '#http/route';
 import { HttpServer } from '#http/server';
-import { asClass, createContainer, InjectionMode, Lifetime } from 'awilix';
-import { describe, expect, test } from 'vitest';
+import { asClass, asValue, Lifetime } from 'awilix';
+import { beforeAll, describe, expect, test } from 'vitest';
 
 describe.concurrent("HTTP server", () => {
   
-  const container = createContainer({ injectionMode : InjectionMode.CLASSIC});
-  container.register({
-    httpServer : asClass(HttpServer, { lifetime : Lifetime.TRANSIENT})
+  beforeAll(() => {
+    container.register({
+      httpConfiguration: asValue(HttpConfiguration),
+      loggerConfiguration: asValue(LoggerConfiguration),
+    });
+    container.register({
+      httpServer: asClass(HttpServer, { lifetime: Lifetime.TRANSIENT })
+    });
   });
-
   test("server creation", () => {
     const server = container.resolve<HttpServer>('httpServer');
     expect(server).toBeInstanceOf(HttpServer);
   });
-  
+
   test("adding routes", () => {
     const server = container.resolve<HttpServer>('httpServer');
-    
+
     const route = new HTTPRoute();
     route.method = 'get';
     route.url = '';

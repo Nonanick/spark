@@ -59,22 +59,13 @@ export class HttpServer {
   addRoute(...routes: HTTPRoute[]) {
     routes.forEach(route => {
       const handler = this.createHandlerForRoute(route);
-
       const method = route.method == null
         ? 'GET' as HTTPMethod
         : Array.isArray(route.method)
           ? route.method.map(r => r.toLocaleUpperCase()) as HTTPMethod[]
           : route.method.toLocaleUpperCase() as HTTPMethod;
       const url = route.url == null ? '/' : ['/', '*'].includes(route.url.charAt(0)) ? route.url : '/' + route.url;
-
       this.#router.on(method, url, handler);
-
-      let log: any = { method, url, };
-      if (route.requestInterceptor!.length > 0) log["requestInterceptors"] = route.requestInterceptor!.map(i => i.name);
-      if (route.responseInterceptor!.length > 0) log["responseInterceptors"] = route.responseInterceptor!.map(i => i.name);
-      if (route.guards!.length > 0) log["guards"] = route.guards!.map(i => i.name);
-
-      this.#logger.info("Added route to server:", log);
     });
     this.#routes.push(...routes);
   }

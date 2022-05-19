@@ -3,10 +3,9 @@ import { beforeAll } from "vitest";
 
 beforeAll(async () => {
 
-  const routeTest = setupRouteTest(
+  const routeTest = await setupRouteTest(
     import.meta.url,
-    {
-    }
+    {}
   );
 
 });
