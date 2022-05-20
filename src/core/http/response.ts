@@ -128,24 +128,24 @@ export class HTTPResponse {
       for (let cookieName in this.#cookies) {
         setCookies.push(serializeCookie(cookieName, this.#cookies[cookieName].value, { ...this.#cookies[cookieName] }));
       }
-      response.setHeader('set-cookie', setCookies);
+      response.setHeader('Set-Cookie', setCookies);
 
       // check type of payload
       if (this.#payload != null) {
 
         // do we need to infer content-type?
-        if (!response.hasHeader('content-type')) {
+        if (!response.hasHeader('Content-Type')) {
           // if payload is a buffer, send it as octet-stream!
           if (this.#payload instanceof Buffer || this.#payload instanceof Uint8Array) {
-            response.setHeader('content-type', 'application/octet-stream');
+            response.setHeader('Content-Type', 'application/octet-stream');
           }
 
           if (typeof this.#payload === 'object') {
-            response.setHeader('content-type', 'application/json');
+            response.setHeader('Content-Type', 'application/json');
           }
 
           if (['string', 'number', 'boolean'].includes(typeof this.#payload)) {
-            response.setHeader('content-type', 'text/plain');
+            response.setHeader('Content-Type', 'text/plain');
           }
         }
 

@@ -41,6 +41,10 @@ export class HTTPHandler {
   urlParams?: TRequestURLParams;
   queryParams?: TRequestQueryParams;
 
+  get injector() {
+    return this.container;
+  }
+
   constructor(
     private container: AwilixContainer,
     private route: HTTPRoute

@@ -64,6 +64,10 @@ export class HttpServer {
     return [...this.#routes];
   }
 
+  get handlers() {
+    return [...this.#handlers];
+  }
+
   addRoute(...routes: HTTPRoute[]) {
     routes.forEach(route => {
       const handler = this.createHandlerForRoute(route);
@@ -80,7 +84,7 @@ export class HttpServer {
     this.#routes.push(...routes);
   }
 
-  listen(options?: TListenOptions) {
+  async listen(options?: TListenOptions) {
 
     const listOpts: TListenOptions = {
       host: options?.host ?? this.httpConfiguration.server.host,
@@ -88,6 +92,16 @@ export class HttpServer {
     };
 
     this.#server.listen(listOpts);
+
+    return new Promise<boolean>((res, rej) => {
+      this.#server.on('listening', () => {
+        res(true);
+      });
+
+      this.#server.on('error', (e) => {
+        console.error('server error?', e)
+      });
+    });
 
   }
 

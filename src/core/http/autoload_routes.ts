@@ -50,11 +50,11 @@ const routeMatcher = new RegExp(`(?<name>.+?)\\.(?<method>${[
   // load all methods
   ...httpMethods
 ].map(m => m.toLocaleLowerCase()).join('|')
-  })\\.(m|c)?js$` // load extensions .mts .cts .mjs .cjs .ts .js
+  })\\.(m|c)?(j|t)s$` // load extensions .mts .cts .mjs .cjs .ts .js
 );
 
 // matches: "__controller.ext", "__ctrl.ext", "__interceptor.ext", just as named ones: "__auth.ctrl.ts"
-const controllerMatcher = /__(?<name>.+?\.)?(controller|ctrl|interceptor|guard)\.(m|c)?(t|j)s$/;
+export const controllerMatcher = /__(?<name>.+?\.)?(controller|ctrl|interceptor|guard)\.(m|c)?(t|j)s$/;
 
 export async function autoloadHttpRoutes(from: string, baseDir: string = '') {
 
@@ -134,7 +134,6 @@ export async function autoloadHttpRoutes(from: string, baseDir: string = '') {
 export async function defaultRouteModuleLoader(
   filepath: string
 ) {
-
   const fileURL = pathToFileURL(filepath);
   const filename = path.basename(filepath);
   let { name, method } = filename.match(routeMatcher)!.groups!;

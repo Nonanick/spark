@@ -14,7 +14,6 @@ export const AuthenticationGuard =  createGuard({
         return HTTPResponse.error(new Error("Failed to verify access token!"), 401);
       }
       return true;
-      
     },
 });
 
