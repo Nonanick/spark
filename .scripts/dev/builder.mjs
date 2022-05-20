@@ -45,7 +45,21 @@ export class ProjectBuilder extends EventEmitter {
       return Promise.all([
         fs.unlink(fullJs),
         fs.unlink(fullJsMap),
-      ]).then(_ => {
+      ]).catch(err=> {
+        console.warn(" ⚠️ Failed to remove file on unlink event", file);
+      }).then(_ => {
+        this.notify([full]);
+      });
+    });
+
+    this.#fileWatcher.on('unlinkDir', (dirName) => {
+      // remove both .js and .js.map
+      let full = path.join(this.outputDirectory, dirName);
+      return Promise.all([
+        fs.rm(full, {recursive : true, force : true }),
+      ]).catch(err=> {
+        console.warn(" ⚠️ Failed to remove directory on unlink event", full);
+      }).then(_ => {
         this.notify([full]);
       });
     });

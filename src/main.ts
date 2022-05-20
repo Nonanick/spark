@@ -17,15 +17,16 @@ loadEnvVariables();
 
 // register configurations
 container.register({
-  appConfiguration : asValue(AppConfiguration),
-  httpConfiguration : asValue(HttpConfiguration),
-  loggerConfiguration : asValue(LoggerConfiguration)
+  container: asValue(container),
+  appConfiguration: asValue(AppConfiguration),
+  httpConfiguration: asValue(HttpConfiguration),
+  loggerConfiguration: asValue(LoggerConfiguration)
 });
 
 // register core features
 container.register({
-  httpServer : asClass(HttpServer, { lifetime : Lifetime.SINGLETON}),
-  websocketServer : asClass(WebsocketServer, { lifetime : Lifetime.SINGLETON})
+  httpServer: asClass(HttpServer, { lifetime: Lifetime.SINGLETON }),
+  websocketServer: asClass(WebsocketServer, { lifetime: Lifetime.SINGLETON })
 });
 
 // start boot sequence 
@@ -34,11 +35,13 @@ export default spark();
 // spark boot sequence
 async function spark() {
 
-  console.log(" - 🔥 Spark! Starting servers... ");
-
   // check if it is a development env
   const isDev = process.env.NODE_ENV === 'development';
-  if(isDev) Logger.enableDevOutput();
+  if (isDev) Logger.enableDevOutput();
+
+  const appLogger = new Logger("App", container);
+
+  appLogger.dev(" 🔥 Spark! Starting servers...\n    ----------------------------- ");
 
   const appConfig = container.resolve<TAppConfiguration>('appConfiguration');
 
@@ -65,14 +68,14 @@ async function spark() {
 
   // launch servers
   await http.listen({
-    host: '127.0.0.1', 
-    port : 4321
+    host: '127.0.0.1',
+    port: 4321
   });
+  appLogger.dev("    -----------------------------");
+  appLogger.dev("🌎 HTTP server is listening at http://127.0.0.1:4321!");
+  appLogger.dev(`📰 Currently serving ${http.routes.length} routes!`);
+  appLogger.dev(`💹 Using ${Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100} MB (${Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 100) / 100} MB of heap used)`,)
 
-  console.log("🌎 HTTP server is listening at http://127.0.0.1:4321!");
-  console.log("📰 Currently serving", http.routes.length, "routes!");
-  console.log(`💹 Using ${Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100} MB (${Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 100) / 100} MB of heap used)`, )
-  
   return {
     http
   };

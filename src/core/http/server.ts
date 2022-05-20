@@ -1,5 +1,5 @@
 import type { THttpConfiguration } from "#config/http.config";
-import { container } from "#container";
+import { container as rootContainer } from "#container";
 import { Logger } from "#logger";
 import type { AwilixContainer } from "awilix";
 import createRouter, { type HTTPMethod } from 'find-my-way';
@@ -33,16 +33,21 @@ export class HttpServer {
     }
   });
 
-  #logger = new Logger(HttpServer.name);
+  #logger;
 
-  #container : AwilixContainer = container;
+  #container : AwilixContainer;
+
+  get raw() {
+    return this.#server;
+  }
 
   setDependencyContainer(container : AwilixContainer) {
     this.#container = container;
   }
 
   constructor(
-    private httpConfiguration: THttpConfiguration
+    private httpConfiguration: THttpConfiguration,
+    container? : AwilixContainer
   ) {
     this.#server = this.httpConfiguration.server.ssl != null
       ? createSSLServer(
@@ -50,6 +55,9 @@ export class HttpServer {
         this.#router.lookup.bind(this.#router)
       )
       : createServer(this.#router.lookup.bind(this.#router));
+
+      this.#container = container ?? rootContainer;
+      this.#logger = new Logger(HttpServer.name, this.#container);
   }
 
   get routes() {
@@ -65,8 +73,10 @@ export class HttpServer {
           ? route.method.map(r => r.toLocaleUpperCase()) as HTTPMethod[]
           : route.method.toLocaleUpperCase() as HTTPMethod;
       const url = route.url == null ? '/' : ['/', '*'].includes(route.url.charAt(0)) ? route.url : '/' + route.url;
+      this.#logger.dev(` • ✅ [${String(method).padEnd(6, " ")}] ${url}`);
       this.#router.on(method, url, handler);
     });
+   
     this.#routes.push(...routes);
   }
 
@@ -79,13 +89,6 @@ export class HttpServer {
 
     this.#server.listen(listOpts);
 
-    this.#server.on('listening', () => {
-      this.#logger.log(
-        `Listening at ${this.httpConfiguration.server.ssl == null ? 'http' : 'https'
-        }://${listOpts.host}:${listOpts.port}`,
-        options
-      );
-    });
   }
 
   private createHandlerForRoute(route: HTTPRoute) {

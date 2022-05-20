@@ -1,13 +1,14 @@
 import type { TLoggerConfiguration } from "#config/logger.config";
-import { container } from "#container";
+import { container as rootContainer } from "#container";
+import type { AwilixContainer } from "awilix";
 import { Chalk, type ChalkInstance } from 'chalk';
 import pino from "pino";
 
 let p: pino.Logger;
 
-export function getPino() {
+export function getPino(container? : AwilixContainer) {
   if (p == null) {
-    const config = container.resolve<TLoggerConfiguration>('loggerConfiguration');
+    const config = (container ?? rootContainer).resolve<TLoggerConfiguration>('loggerConfiguration');
     const loggerTransports = pino.transport(config);
     p = pino(loggerTransports);
   }
@@ -37,8 +38,11 @@ export class Logger {
 
   #pino: pino.Logger;
 
-  constructor(private name: string) {
-    this.#pino = getPino();
+  #container : AwilixContainer;
+
+  constructor(private name: string, container? : AwilixContainer) {
+    this.#pino = getPino(container);
+    this.#container = container ?? rootContainer;
 
   }
 
@@ -100,7 +104,7 @@ export class Logger {
     if (colorizer == null) colorizer = new Chalk();
 
     if (Logger.devOutput) {
-      process.stdout.write('\n' + colorizer!.bold(msg) + '\n');
+      process.stdout.write( colorizer!.bold(msg) + '\n');
       objs.forEach(o => {
         let out = prettyPrintJson(o);
         if (process.stdout.columns ?? 100 > inlineOutput(out).length) {

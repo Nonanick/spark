@@ -2,6 +2,8 @@ import { defaultModuleLoader } from "#utils/module_loader";
 import type { HTTPMethod } from "find-my-way";
 import { promises as fs } from "node:fs";
 import path from 'node:path';
+import { pathToFileURL } from "node:url";
+import { z } from "zod";
 import { HTTPController } from './controller.js';
 import { HTTPRoute } from './route.js';
 
@@ -58,7 +60,7 @@ export async function autoloadHttpRoutes(from: string, baseDir: string = '') {
 
   const currentDir = await fs.readdir(from, { withFileTypes: true });
   const allRoutes: HTTPRoute[] = [];
-  const allControllers : HTTPController[] = [];
+  const allControllers: HTTPController[] = [];
 
   for (let entry of currentDir) {
     if (entry.isDirectory()) {
@@ -66,9 +68,36 @@ export async function autoloadHttpRoutes(from: string, baseDir: string = '') {
         `${from}${path.sep}${entry.name}`,
         path.join(baseDir, entry.name)
       );
+
+      // transform directories into new ones
+      let resolvedDirName = convertFilenameToURLParameters(entry.name);
+
+      // if the directory contains an url parameter we need to add it to the schema!
+      if (resolvedDirName != entry.name) {
+        const addUrlParameterToSchemaController = new HTTPController<any, any, any, any, any>();
+        addUrlParameterToSchemaController.urlParams = {};
+        const findOptionalNamedParameters = entry.name.match(/\[_(.+)\]/g);
+        const findRequiredNamedParameters = entry.name.replace(/\[_(.+)\]/g, '').match(/\[(.+)\]/g);
+        
+        if (findOptionalNamedParameters != null) {
+          findOptionalNamedParameters.forEach(n => {
+            n = n.replace(/\[_(.+)\]/, '$1');
+            addUrlParameterToSchemaController.urlParams![n] = z.string().optional();
+          })
+        }
+
+        if (findRequiredNamedParameters != null) {
+          findRequiredNamedParameters.forEach(n => {
+            n = n.replace(/\[(.+)\]/, '$1');
+            addUrlParameterToSchemaController.urlParams![n] = z.string();
+          })
+        }
+
+        allControllers.push(addUrlParameterToSchemaController);
+      }
       // append directory name
       loadedRoutes.forEach(r => {
-        r.url = r.url == null ? path.posix.join(entry.name,'') : path.posix.join(entry.name,r.url); 
+        r.url = r.url == null ? path.posix.join(resolvedDirName, '') : path.posix.join(resolvedDirName, r.url);
       });
 
       allRoutes.push(...loadedRoutes);
@@ -78,26 +107,15 @@ export async function autoloadHttpRoutes(from: string, baseDir: string = '') {
       // check if it is a route
       let matchesRoute = entry.name.match(routeMatcher)
       if (matchesRoute != null) {
-        const routeName = matchesRoute.groups!.name;
-        const routeMethod = matchesRoute.groups!.method;
-
-        let loadedRoutes = await defaultModuleLoader(
+        let loadedRoutes = await defaultRouteModuleLoader(
           `${from}${path.sep}${entry.name}`,
-          function (m: unknown): m is HTTPRoute { return m instanceof HTTPRoute },
         );
-
-        // update loaded routes parameters
-        loadedRoutes.forEach(r => {
-          r.method = r.method == null ? (routeMethod === 'route' ? 'get' : routeMethod as Lowercase<HTTPMethod>) : r.method;
-          r.url = r.url == null ? (routeName === 'index' ? '' : routeName) : r.url
-        });
-
         allRoutes.push(...loadedRoutes);
       }
 
       // chekc if it is a controller
       let matchesController = entry.name.match(controllerMatcher);
-      if(matchesController != null) {
+      if (matchesController != null) {
         let loadedControllers = await defaultModuleLoader(
           `${from}${path.sep}${entry.name}`,
           function (m: unknown): m is HTTPController { return m instanceof HTTPController },
@@ -107,9 +125,52 @@ export async function autoloadHttpRoutes(from: string, baseDir: string = '') {
     }
   }
 
-  for(let controller of allControllers) {
+  for (let controller of allControllers) {
     controller.applyToRoute(...allRoutes);
   }
   return allRoutes;
 }
 
+export async function defaultRouteModuleLoader(
+  filepath: string
+) {
+
+  const fileURL = pathToFileURL(filepath);
+  const filename = path.basename(filepath);
+  let { name, method } = filename.match(routeMatcher)!.groups!;
+  // replace [] with named params
+  name = convertFilenameToURLParameters(name);
+
+  // check if importing a directory
+  const statFromFilepath = await fs.stat(filepath);
+  if (statFromFilepath.isDirectory()) {
+    filepath = `${filepath}${path.sep}index.js`;
+  }
+
+  return import(fileURL.toString())
+    .then(exportedModules => {
+      let allMatchedModules: HTTPRoute[] = [];
+      for (let namedExport in exportedModules) {
+        let exportedModule = exportedModules[namedExport];
+        // Fix "default" import
+        if (namedExport === 'default' && exportedModule != null && exportedModule.default != null) exportedModule = exportedModule.default;
+
+        if (exportedModule instanceof HTTPRoute) {
+          allMatchedModules.push(exportedModule);
+        }
+      }
+
+      allMatchedModules.forEach(r => {
+        r.method = r.method == null ? (method === 'route' ? 'get' : method as Lowercase<HTTPMethod>) : r.method;
+        r.url = r.url == null ? (name === 'index' ? '' : name) : r.url
+      });
+
+      return allMatchedModules;
+    });
+}
+
+export function convertFilenameToURLParameters(name: string) {
+  return name
+    .replace(/\[_(.+)\]/g, ':$1?') // replace [_urlParams] into {:urlParams}? (optional)
+    .replace(/\[(.+)\]/g, ':$1'); // replace [urlParams] into {:urlParams}
+}

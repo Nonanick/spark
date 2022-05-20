@@ -29,7 +29,7 @@ export class ProjectRunner extends EventEmitter {
 
     });
     this.worker.once('exit', () => {
-      console.log("Waiting for the next change in project to respawn!");
+      console.log("Waiting for the next change in project to respawn!\n");
     });
     //this.worker.on("exit", this.autoRespawn);
   }
