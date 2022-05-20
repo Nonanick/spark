@@ -8,7 +8,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Class, JsonValue } from "type-fest";
 import type { AnyZodObject } from "zod";
 import { BadRequest, InternalServerError, Unauthorized } from "./http_error.js";
-import type { HTTPResponseInterceptor, TInterceptHTTPResponseFn, TResponseInterceptionMoment } from "./interceptors.js";
+import type { HTTPRequestInterceptor, HTTPResponseInterceptor, TInterceptHTTPResponseFn, TResponseInterceptionMoment } from "./interceptors.js";
 import { parseBodyIntoRequest } from "./parse/body.js";
 import { cookieParser } from "./parse/cookies.js";
 import { queryParamsParser } from "./parse/queryParams.js";
@@ -43,6 +43,27 @@ export class HTTPHandler {
 
   get injector() {
     return this.container;
+  }
+
+  addResponseInterceptor(interceptor : HTTPResponseInterceptor) {
+    // destroy cached "moments"
+    this.#responseInterceptorsByMoment = undefined;
+
+    if(this.route.responseInterceptor == null) {
+      this.route.responseInterceptor = [];
+    } 
+
+    this.route.responseInterceptor.push(interceptor);
+  }
+
+  addRequestInterceptor(interceptor : HTTPRequestInterceptor) {
+    // destroy cached "moments"
+    
+    if(this.route.requestInterceptor == null) {
+      this.route.requestInterceptor = [];
+    } 
+
+    this.route.requestInterceptor.push(interceptor);
   }
 
   constructor(
@@ -110,6 +131,16 @@ export class HTTPHandler {
         request,
         'data-validation-failed',
         container,
+        {
+          _metadata : {},
+          body : undefined,
+          headers : req.headers,
+          id : randomUUID(),
+          issuedAt : new Date(),
+          method : req.method! as HTTPMethod,
+          url : req.url!,
+          provide(){},
+        },
       );
       return response.send(res);
     }
@@ -124,14 +155,14 @@ export class HTTPHandler {
           interceptedRequest,
           'interceptor-prevented-progression-with-ok-response',
           container,
-
+          request,
         );
       } else {
         response = await this.applyResponseInterceptors(
           interceptedRequest,
           'interceptor-prevented-progression-with-error-response',
           container,
-
+          request,
         );
       }
       return response.send(res);
@@ -147,6 +178,7 @@ export class HTTPHandler {
         canContinue,
         'guard-prevented-progression',
         container,
+        request,
       );
       return response.send(res);
     }
@@ -191,6 +223,7 @@ export class HTTPHandler {
         handlerResponse,
         'handler-finished-with-error-response',
         container,
+        request,
       );
       return response.send(res);
     }
@@ -199,6 +232,7 @@ export class HTTPHandler {
       handlerResponse,
       'handler-finished-with-ok-response',
       container,
+      request,
     );
 
     return handlerResponse.send(res);
@@ -379,6 +413,7 @@ export class HTTPHandler {
     responseOrError: HTTPResponse | Error,
     moment: TResponseInterceptionMoment,
     container: AwilixContainer,
+    request: IHTTPRequestData
   ) {
 
     let response: HTTPResponse;
@@ -437,7 +472,7 @@ export class HTTPHandler {
     );
 
     for (const interceptorFn of applyInterceptors) {
-      let injectServices = this.resolveServices(container, this.getFunctionServices(interceptorFn, 1));
+      let injectServices = this.resolveServices(container, this.getFunctionServices(interceptorFn, 2));
       if (injectServices instanceof Error) {
         this.#logger.fatal(
           'Failed to resolve services from response interceptor!',
@@ -446,8 +481,16 @@ export class HTTPHandler {
         );
         return HTTPResponse.error(new InternalServerError("Missing/unresolved required service for this route"));
       }
-      response = await interceptorFn(response, ...injectServices);
+      let interceptedResponse = await interceptorFn(response, request, ...injectServices);
+      if(!(interceptedResponse instanceof HTTPResponse)) {
+        this.#logger.warn("Response interceptor failed to return a HTTP response! Using previous reference for it!");
+      } else {
+        response = interceptedResponse;
+      }
     }
+
+    response.setGenerationMoment(moment);
+
     return response;
   }
 

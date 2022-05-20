@@ -54,6 +54,7 @@
     "chalk": "^5.0.1",
     "chokidar": "^3.5.3",
     "esbuild": "^0.14.39",
+    "nodemon": "^2.0.16",
     "prisma": "^3.14.0",
     "type-fest": "^2.12.2",
     "vitest": "^0.12.5"

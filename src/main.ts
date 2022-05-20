@@ -2,7 +2,7 @@ import { container } from "#container";
 import { config as loadEnvVariables } from 'dotenv';
 import { asClass, asValue, Lifetime } from "awilix";
 import { AppConfiguration, TAppConfiguration } from "#config/app.config";
-import { HttpConfiguration } from "#config/http.config";
+import { HttpConfiguration, THttpConfiguration } from "#config/http.config";
 import { LoggerConfiguration } from "#config/logger.config";
 import { HttpServer } from "#http/server";
 import { WebsocketServer } from "#ws/server";
@@ -44,6 +44,7 @@ async function spark() {
   appLogger.dev(" 🔥 Spark! Starting servers...\n    ----------------------------- ");
 
   const appConfig = container.resolve<TAppConfiguration>('appConfiguration');
+  const httpConfig = container.resolve<THttpConfiguration>('httpConfiguration');
 
   // resolve paths
   const appRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -68,11 +69,11 @@ async function spark() {
 
   // launch servers
   await http.listen({
-    host: '127.0.0.1',
-    port: 4321
+    host: httpConfig.server.host,
+    port: httpConfig.server.port
   });
   appLogger.dev("    -----------------------------");
-  appLogger.dev("🌎 HTTP server is listening at http://127.0.0.1:4321!");
+  appLogger.dev(`🌎 HTTP server is listening at http://${httpConfig.server.host}:${httpConfig.server.port}!`);
   appLogger.dev(`📰 Currently serving ${http.routes.length} routes!`);
   appLogger.dev(`💹 Using ${Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100} MB (${Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 100) / 100} MB of heap used)`,)
 

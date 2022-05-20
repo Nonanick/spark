@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spark - Server dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/open-props@1.3.16/normalize.min.css" type="text/css" />
+  <link rel="stylesheet" href="https://unpkg.com/open-props@1.3.16/open-props.min.css" type="text/css" />
+  <link rel="stylesheet" href="/global.css" type="text/css" />
+</head>
+<style>
+  .app {
+    --item-size: 3.5rem;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--surface-2);
+    display: grid;
+    grid-template-columns: var(--item-size) 1fr;
+    grid-template-rows: var(--item-size) 1fr;
+    overflow: hidden;
+  }
+
+  header {
+    grid-column: 1 / 3;
+    grid-row: 1 / 2;
+    background-color: var(--surface-1);
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    grid-template-rows: var(--item-size);
+    align-items: center;
+    padding: 0 1rem;
+  }
+
+  .logo {
+    font-size: 1.5rem;
+  }
+
+  nav ul {
+    display: flex;
+    flex-direction: row;
+    column-gap: 2rem;
+  }
+
+  main {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(200px, 25vw) 1fr;
+    grid-template-rows: 1fr;
+    padding: 1rem 1rem;
+    width: 100%;
+    height: calc(100vh - var(--item-size));
+    grid-column: 1 / 3;
+    grid-row: 2 / 3;
+    column-gap: 1rem;
+  }
+
+  main>section {
+    background-color: var(--surface-1);
+    border-radius: var(--radius-2);
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: relative;
+    max-height: 100%;
+    display: grid;
+    grid-template-rows: 3.5rem calc(100% - 3.5rem);
+  }
+
+  main>section>h4 {
+    padding: 1rem 1.5rem;
+  }
+
+  .server-status,
+  .filter-requests {
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius-2);
+    background-color: var(--surface-1);
+    margin-bottom: 1rem;
+  }
+
+  .server-status>.title,
+  .filter-requests>.title {
+    font-size: 1.2rem;
+    font-weight: 500;
+    line-height: 1.8;
+    border-bottom: 1px solid var(--surface-2);
+    margin-bottom: 0.5rem;
+  }
+
+  .status-report-circle {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    border: 1px solid var(--surface-3);
+    margin-left: 0.15rem;
+    margin-right: 0.2rem;
+    display: none;
+  }
+
+  .status-report-circle.online {
+    background-color: var(--green-5);
+  }
+
+  .request-section {
+    width: 100%;
+    padding: 1rem 1.5rem;
+
+    overflow-y: auto;
+  }
+
+  .request-display {
+    width: 100%;
+    height: auto;
+    padding: 1rem 1rem;
+    background-color: var(--surface-2);
+    margin-bottom: 1rem;
+    border-radius: var(--radius-2);
+  }
+
+  .request-display>.title {
+    display: flex;
+    border-bottom: 1px solid var(--surface-3);
+    height: 2.5rem;
+    column-gap: 1rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .request-display>.title>.url-tag {
+    flex-grow: 1;
+    font-style: italic;
+  }
+
+  .request-display>.title>.method-tag {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-1);
+    flex-grow: 0;
+  }
+
+  .request-display>.title>.method-tag.post {
+    background-color: var(--blue-6);
+  }
+
+  .request-display>.title>.method-tag.get {
+    background-color: var(--indigo-8);
+
+  }
+
+  .request-display>.title>.timestamp-tag {
+    color: var(--gray-5);
+    font-size: 0.75rem;
+  }
+
+  .request-display>.title>.status-tag {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-1);
+    flex-grow: 0;
+  }
+
+  .request-display>.title>.status-tag.ok {
+    background-color: var(--teal-9);
+    color: white;
+  }
+
+  .request-display>.title>.status-tag.error {
+    background-color: var(--red-8);
+  }
+
+  .request-display .request-message {
+    font-size: 0.9rem;
+  }
+
+  .amount-requests-tag {
+    font-size: 0.9rem;
+  }
+
+  pre {
+    white-space: break-spaces;
+    word-wrap: break-word;
+  }
+</style>
+
+<body>
+  <div class="app">
+    <header>
+      <a href="/">
+        <div class="logo">🔥 Spark</div>
+      </a>
+      <nav>
+        <ul>
+          <li><a href="/routes"> Routes </a></li>
+          <li><a href="/logs"> Logs </a></li>
+        </ul>
+      </nav>
+    </header>
+    <main>
+      <aside>
+        <div class="server-status">
+          <div class="title">Server Status</div>
+          <span class="status-report-circle online"></span> <span class="status-display">online</span>
+          <br />
+          🌍 <a href="http://localhost:4001/">http://localhost:4001/</a>
+          <br />
+          ⏩ <a href="/routes"><span class="routes-amount-tag"></span></a>
+          <br />
+          💹 <span class="memory-amount-tag"></span>
+        </div>
+        <div class="filter-requests">
+          <div class="title">Filter requests</div>
+
+        </div>
+      </aside>
+      <section>
+        <h4>Requests <span class="amount-requests-tag"></span></h4>
+        <div class="request-section">
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="request-template">
+    <div class="request-display">
+      <div class="title">
+        <div class="method-tag">POST</div>
+        <div class="url-tag">/url</div>
+        <div class="timestamp-tag">timestamp</div>
+        <div class="status-tag">200 OK</div>
+      </div>
+      <div class="request-message">
+        Response was generated <span class="moment-tag"></span>
+      </div>
+      <br />
+
+      <div class="data-details">
+        <details>
+          <summary>Request data</summary>
+          <pre class="incoming-data-tag">
+          </pre>
+        </details>
+        <br />
+        <details>
+          <summary>Response data</summary>
+          <pre class="outgoing-data-tag">
+          </pre>
+        </details>
+      </div>
+    </div>
+  </template>
+  <script defer>
+
+    const renderedRequests = new Map();
+
+    function setAsOffline() {
+      document.querySelector('.status-report-circle').classList.remove('online');
+      document.querySelector('.status-report-circle').classList.add('offline');
+      document.querySelector('.status-display').innerText = '❌ offline';
+    }
+
+    function setAsOnline() {
+      document.querySelector('.status-report-circle').classList.add('online');
+      document.querySelector('.status-report-circle').classList.remove('offline');
+      document.querySelector('.status-display').innerText = ' ✅ online';
+    }
+    
+    async function fetchRequestsToServer() {
+      const res = await fetch('/api/requests');
+      if (!res.ok) {
+        setAsOffline();
+        return;
+      }
+      setAsOnline()
+
+      const body = await res.json();
+
+      for (let a = 0; a < body.length; a++) {
+        let request = body[a];
+        console.log(request.req);
+        if (renderedRequests.has(request.req.id)) {
+          continue;
+        }
+
+        /**
+         * @type {DocumentFragment}
+         */
+        const newTempl = document.querySelector('#request-template').content.cloneNode(true);
+
+        newTempl.querySelector('.url-tag').innerHTML = request.req.url;
+        newTempl.querySelector('.method-tag').innerHTML = request.req.method;
+        newTempl.querySelector('.method-tag').classList.add(request.req.method.toLocaleLowerCase());
+        newTempl.querySelector('.status-tag').classList.add(request.res.status < 400 ? 'ok' : 'error');
+        newTempl.querySelector('.status-tag').innerHTML = request.res.status;
+        newTempl.querySelector('.moment-tag').innerHTML = getMomentName(request.res.moment);
+        newTempl.querySelector('.timestamp-tag').innerHTML = request.req.issuedAt;
+        newTempl.querySelector('.outgoing-data-tag').innerHTML = JSON.stringify({
+          status: request.res.status,
+          body: request.res.payload,
+          headers: request.res.headers,
+          cookies: request.res.cookies,
+        }, undefined, 2);
+
+        newTempl.querySelector('.incoming-data-tag').innerHTML = JSON.stringify({
+          body: request.req.body,
+          headers: request.req.headers,
+          cookies: request.req.cookies,
+          urlParams: request.req.urlParams,
+          queryParams: request.req.queryParams,
+          files: request.req.files,
+        }, undefined, 2);
+        //newTempl.children.item(0).innerHTML = '<pre>' + JSON.stringify(request) + '</pre>';
+        document.querySelector('.request-section').prepend(newTempl);
+
+        renderedRequests.set(request.req.id, request);
+      }
+
+      document.querySelector('.amount-requests-tag').innerHTML = `(${renderedRequests.size})`;
+    }
+
+    async function fetchStatusFromServer() {
+      const res = await fetch('/api/status');
+      if (!res.ok) {
+        setAsOffline();
+      }
+      setAsOnline();
+      let status = await res.json();
+
+      document.querySelector('.routes-amount-tag').innerHTML = 'Serving <strong>' + status.routes + '</strong> routes';
+      document.querySelector('.memory-amount-tag').innerHTML = 'Using <strong>' + status.memory.toFixed(2) + '</strong> MB of memory';
+    }
+    function getMomentName(name) {
+      switch (name) {
+        case 'handler-finished-with-ok-response':
+          return "by the route handler and resolved with a \"OK\" response!";
+          break;
+        case 'handler-finished-with-error-response':
+          return "by the route handler and resolved with a \"ERROR\" response!";
+          break;
+        case 'guard-prevented-progression':
+          return "by the a route guard that did not allow the request to progress further!";
+          break;
+        default: return name;
+      }
+    }
+    setInterval(fetchStatusFromServer, 10000);
+    setInterval(fetchRequestsToServer, 2000);
+    fetchRequestsToServer();
+    fetchStatusFromServer();
+
+  </script>
+</body>
+
+</html>

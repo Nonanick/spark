@@ -70,7 +70,14 @@ export type TInterceptHTTPRequestFn<
     | Promise<TRequestType<Body, Headers, Cookies, URLParams, QueryParams> | HTTPResponse | Error>;
 
 
-export type TInterceptHTTPResponseFn = (req: HTTPResponse, ...services: unknown[]) =>
+export type TInterceptHTTPResponseFn<
+Body extends TRequestBody | undefined = undefined,
+Headers extends TRequestHeaders | undefined = undefined,
+Cookies extends TRequestCookies | undefined = undefined,
+URLParams extends TRequestURLParams | undefined = undefined,
+QueryParams extends TRequestQueryParams | undefined = undefined,
+Services extends unknown[] = unknown[],
+> = (res: HTTPResponse, req : TRequestType<Body, Headers, Cookies, URLParams, QueryParams>, ...services: Services) =>
   | HTTPResponse
   | Promise<HTTPResponse>;
 

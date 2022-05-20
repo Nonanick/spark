@@ -1,6 +1,7 @@
 import { Logger } from "#logger";
 import type { ServerResponse } from "node:http";
 import { HTTPError, InternalServerError } from "./http_error.js";
+import type { HTTPResponseInterceptor, TResponseInterceptionMoment } from "./interceptors.js";
 import { ISetCookieOptions, serializeCookie } from "./parse/cookies.js";
 
 export class HTTPResponse {
@@ -46,6 +47,8 @@ export class HTTPResponse {
     return r;
   }
 
+  #generatedAt?: TResponseInterceptionMoment; 
+
   #statusCode: number = 200;
 
   #headers: Record<string, string> = {};
@@ -53,6 +56,14 @@ export class HTTPResponse {
   #cookies: Record<string, ISetCookieOptions> = {};
 
   #payload: Record<string, unknown> | unknown = {};
+
+  setGenerationMoment(moment : TResponseInterceptionMoment) {
+    this.#generatedAt = moment;
+  }
+
+  get generatedAt() {
+    return this.#generatedAt ?? 'handler-finished-with-ok-response';
+  }
 
   setHeader(name: string, value: string) {
     this.#headers[name] = value;
@@ -183,6 +194,16 @@ export class HTTPResponse {
         res();
       });
     });
+  }
+
+  asJSON() {
+    return {
+      status : this.#statusCode,
+      payload : this.#payload,
+      headers : this.#headers,
+      cookies : this.#cookies,
+      moment : this.#generatedAt ?? 'handler-finished-with-ok-response'
+    }
   }
 
 }

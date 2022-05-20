@@ -51,5 +51,5 @@ test('payload is of expected type', async () => {
     }
   });
   expect(res.status).toBe(200);
-  expect(res.text()).resolves.toBe("hello from private!");
+  await expect(res.text()).resolves.toBe("hello from private!");
 })
