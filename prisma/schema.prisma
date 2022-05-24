@@ -7,5 +7,19 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") 
+  }
+
+enum TestEnum {
+  Test1
+  Test2
+  Test3
+}
+
+model test {
+  id BigInt @id @default(autoincrement())
+  test_name String
+  test_number BigInt?
+  en TestEnum @default(Test1)
+
 }
